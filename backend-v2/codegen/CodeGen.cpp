@@ -224,10 +224,10 @@ TypedValue CodeGen::codegen(const Node &node,
   //   return codegen(node, node.subnode().deftype(), typeRestrictions);
   case opDo:
     return codegen(node, node.subnode().do_(), typeRestrictions);
-  // case opFn:
-  //   return codegen(node, node.subnode().fn(), typeRestrictions);
-  // case opFnMethod:
-  //   return codegen(node, node.subnode().fnmethod(), typeRestrictions);
+  case opFn:
+    return codegen(node, node.subnode().fn(), typeRestrictions);
+  case opFnMethod:
+    return codegen(node, node.subnode().fnmethod(), typeRestrictions);
   case opHostInterop:
     return codegen(node, node.subnode().hostinterop(), typeRestrictions);
   case opIf:
@@ -240,8 +240,8 @@ TypedValue CodeGen::codegen(const Node &node,
     //   return codegen(node, node.subnode().instancefield(), typeRestrictions);
     // case opIsInstance:
     //   return codegen(node, node.subnode().isinstance(), typeRestrictions);
-    // case opInvoke:
-    //   return codegen(node, node.subnode().invoke(), typeRestrictions);
+  case opInvoke:
+    return codegen(node, node.subnode().invoke(), typeRestrictions);
     // case opKeywordInvoke:
     //   return codegen(node, node.subnode().keywordinvoke(), typeRestrictions);
   case opLet:
@@ -250,8 +250,8 @@ TypedValue CodeGen::codegen(const Node &node,
   //   return codegen(node, node.subnode().letfn(), typeRestrictions);
   case opLocal:
     return codegen(node, node.subnode().local(), typeRestrictions);
-  // case opLoop:
-  //   return codegen(node, node.subnode().loop(), typeRestrictions);
+  case opLoop:
+    return codegen(node, node.subnode().loop(), typeRestrictions);
   // case opMethod:
   //   return codegen(node, node.subnode().method(), typeRestrictions);
   // case opMonitorEnter:
@@ -264,8 +264,8 @@ TypedValue CodeGen::codegen(const Node &node,
   //   return codegen(node, node.subnode().priminvoke(), typeRestrictions);
   // case opProtocolInvoke:
   //   return codegen(node, node.subnode().protocolinvoke(), typeRestrictions);
-  // case opRecur:
-  //   return codegen(node, node.subnode().recur(), typeRestrictions);
+  case opRecur:
+    return codegen(node, node.subnode().recur(), typeRestrictions);
   // case opReify:
   //   return codegen(node, node.subnode().reify(), typeRestrictions);
   // case opSet:
@@ -326,10 +326,10 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   //   return getType(node, node.subnode().deftype(), typeRestrictions);
   case opDo:
     return getType(node, node.subnode().do_(), typeRestrictions);
-  // case opFn:
-  //   return getType(node, node.subnode().fn(), typeRestrictions);
-  // case opFnMethod:
-  //   return getType(node, node.subnode().fnmethod(), typeRestrictions);
+  case opFn:
+    return getType(node, node.subnode().fn(), typeRestrictions);
+  case opFnMethod:
+    return getType(node, node.subnode().fnmethod(), typeRestrictions);
   case opHostInterop:
     return getType(node, node.subnode().hostinterop(), typeRestrictions);
   case opIf:
@@ -342,8 +342,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   //   return getType(node, node.subnode().instancefield(), typeRestrictions);
   // case opIsInstance:
   //   return getType(node, node.subnode().isinstance(), typeRestrictions);
-  // case opInvoke:
-  //   return getType(node, node.subnode().invoke(), typeRestrictions);
+  case opInvoke:
+    return getType(node, node.subnode().invoke(), typeRestrictions);
   // case opKeywordInvoke:
   //   return getType(node, node.subnode().keywordinvoke(), typeRestrictions);
   case opLet:
@@ -352,8 +352,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   //   return getType(node, node.subnode().letfn(), typeRestrictions);
   case opLocal:
     return getType(node, node.subnode().local(), typeRestrictions);
-  // case opLoop:
-  //   return getType(node, node.subnode().loop(), typeRestrictions);
+  case opLoop:
+    return getType(node, node.subnode().loop(), typeRestrictions);
   // case opMethod:
   //   return getType(node, node.subnode().method(), typeRestrictions);
   // case opMonitorEnter:
@@ -366,8 +366,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   //   return getType(node, node.subnode().priminvoke(), typeRestrictions);
   // case opProtocolInvoke:
   //   return getType(node, node.subnode().protocolinvoke(), typeRestrictions);
-  // case opRecur:
-  //   return getType(node, node.subnode().recur(), typeRestrictions);
+  case opRecur:
+    return getType(node, node.subnode().recur(), typeRestrictions);
   // case opReify:
   //   return getType(node, node.subnode().reify(), typeRestrictions);
   // case opSet:

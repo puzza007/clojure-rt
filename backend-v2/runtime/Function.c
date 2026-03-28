@@ -59,6 +59,16 @@ bool Function_validCallWithArgCount(ClojureFunction *self, uword_t argCount) {
 }
 
 /* outside refcount system */
+void *Function_getBaselineImpl(ClojureFunction *self, uword_t argCount) {
+  for (uword_t i = 0; i < self->methodCount; i++) {
+    FunctionMethod *m = &self->methods[i];
+    if (!m->isVariadic && m->fixedArity == argCount) return m->baselineImplementation;
+    if (m->isVariadic && m->fixedArity <= argCount) return m->baselineImplementation;
+  }
+  return NULL;
+}
+
+/* outside refcount system */
 bool Function_equals(ClojureFunction *self, ClojureFunction *other) {
   return self->uniqueId == other->uniqueId;
 }

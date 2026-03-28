@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include "../bridge/SourceLocation.h"
 
@@ -138,6 +139,16 @@ public:
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const HostInteropNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const FnNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const FnMethodNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const InvokeNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const LoopNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const RecurNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
 
   ObjectTypeSet getType(const Node &node,
                         const ObjectTypeSet &typeRestrictions);
@@ -174,6 +185,16 @@ public:
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const HostInteropNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const FnNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const FnMethodNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const InvokeNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const LoopNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const RecurNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
 
   Var *getOrCreateVar(std::string_view name);
   bool canThrow(const clojure::rt::protobuf::bytecode::Node &node);
@@ -190,6 +211,23 @@ public:
   }
   MemoryManagement &getMemoryManagement() { return memoryManagement; }
   DynamicConstructor &getDynamicConstructor() { return dynamicConstructor; }
+
+public:
+  // Loop/Recur/Fn tracking for nested compilation
+  struct LoopContext {
+    llvm::BasicBlock *headerBB;
+    std::vector<llvm::PHINode *> phiNodes;
+  };
+  std::unordered_map<std::string, LoopContext> loopContexts;
+
+  enum class RecurContextType { Fn, Loop };
+  std::unordered_map<std::string, RecurContextType> recurContextTypes;
+
+  struct FnRecurContext {
+    llvm::Function *llvmFunction;
+  };
+  std::unordered_map<std::string, FnRecurContext> fnRecurContexts;
+  uint64_t nextFnUniqueId = 1;
 
 private:
   std::map<SourceLocation, std::string> formMap;

@@ -238,3 +238,10 @@ RTValue Numbers_log10(RTValue a) {
   double va = Numbers_toDouble(a);
   return RT_boxDouble(exp(va * M_LN10_X));
 }
+
+// Short aliases referenced by rt-classes.edn generic (:any :any) overloads
+bool lt(RTValue a, RTValue b)    { return Numbers_lt(a, b); }
+bool lte(RTValue a, RTValue b)   { return Numbers_lte(a, b); }
+bool gt(RTValue a, RTValue b)    { return Numbers_gt(a, b); }
+bool gte(RTValue a, RTValue b)   { return Numbers_gte(a, b); }
+bool equiv(RTValue a, RTValue b) { return Numbers_equiv(a, b); }
