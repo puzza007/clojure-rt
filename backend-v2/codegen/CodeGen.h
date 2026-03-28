@@ -147,6 +147,12 @@ public:
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const KeywordInvokeNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const TryNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const CatchNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const ThrowNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const LoopNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const RecurNode &subnode,
@@ -194,6 +200,12 @@ public:
   ObjectTypeSet getType(const Node &node, const InvokeNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const KeywordInvokeNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const TryNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const CatchNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const ThrowNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const LoopNode &subnode,
                         const ObjectTypeSet &typeRestrictions);

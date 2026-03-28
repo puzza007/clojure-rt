@@ -216,8 +216,8 @@ TypedValue CodeGen::codegen(const Node &node,
   //   return codegen(node, node.subnode().casetest(), typeRestrictions);
   // case opCaseThen:
   //   return codegen(node, node.subnode().casethen(), typeRestrictions);
-  // case opCatch:
-  //   return codegen(node, node.subnode().catch_(), typeRestrictions);
+  case opCatch:
+    return codegen(node, node.subnode().catch_(), typeRestrictions);
   case opDef:
     return codegen(node, node.subnode().def(), typeRestrictions);
   // case opDeftype:
@@ -276,10 +276,10 @@ TypedValue CodeGen::codegen(const Node &node,
     return codegen(node, node.subnode().staticfield(), typeRestrictions);
   case opTheVar:
     return codegen(node, node.subnode().thevar(), typeRestrictions);
-  // case opThrow:
-  //   return codegen(node, node.subnode().throw_(), typeRestrictions);
-  // case opTry:
-  //   return codegen(node, node.subnode().try_(), typeRestrictions);
+  case opThrow:
+    return codegen(node, node.subnode().throw_(), typeRestrictions);
+  case opTry:
+    return codegen(node, node.subnode().try_(), typeRestrictions);
   case opVar:
     return codegen(node, node.subnode().var(), typeRestrictions);
   case opWithMeta:
@@ -318,8 +318,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   //   return getType(node, node.subnode().casetest(), typeRestrictions);
   // case opCaseThen:
   //   return getType(node, node.subnode().casethen(), typeRestrictions);
-  // case opCatch:
-  //   return getType(node, node.subnode().catch_(), typeRestrictions);
+  case opCatch:
+    return getType(node, node.subnode().catch_(), typeRestrictions);
   case opDef:
     return getType(node, node.subnode().def(), typeRestrictions);
   // case opDeftype:
@@ -378,10 +378,10 @@ ObjectTypeSet CodeGen::getType(const Node &node,
     return getType(node, node.subnode().staticfield(), typeRestrictions);
   case opTheVar:
     return getType(node, node.subnode().thevar(), typeRestrictions);
-  // case opThrow:
-  //   return getType(node, node.subnode().throw_(), typeRestrictions);
-  // case opTry:
-  //   return getType(node, node.subnode().try_(), typeRestrictions);
+  case opThrow:
+    return getType(node, node.subnode().throw_(), typeRestrictions);
+  case opTry:
+    return getType(node, node.subnode().try_(), typeRestrictions);
   case opVar:
     return getType(node, node.subnode().var(), typeRestrictions);
   case opWithMeta:
