@@ -261,6 +261,25 @@ void registerCmpIntrinsics(InvokeManager &mgr) {
     return b.CreateFCmpOEQ(args[0], args[1]);
   };
 
+  // Mixed int/double comparison codegen: convert int to double, then FCmp
+  auto regMixedIDCodegen = [&intrinsics](const string &symbol, auto cmpFn) {
+    // _ID variant: first arg is int, second is double
+    intrinsics[symbol + "_ID"] = [cmpFn](auto &b, auto args) {
+      Value *d0 = b.CreateSIToFP(args[0], Type::getDoubleTy(b.getContext()));
+      return cmpFn(b, d0, args[1]);
+    };
+    // _DI variant: first arg is double, second is int
+    intrinsics[symbol + "_DI"] = [cmpFn](auto &b, auto args) {
+      Value *d1 = b.CreateSIToFP(args[1], Type::getDoubleTy(b.getContext()));
+      return cmpFn(b, args[0], d1);
+    };
+  };
+  regMixedIDCodegen("ICmpSGE", [](auto &b, Value *a, Value *d) { return b.CreateFCmpOGE(a, d); });
+  regMixedIDCodegen("ICmpSGT", [](auto &b, Value *a, Value *d) { return b.CreateFCmpOGT(a, d); });
+  regMixedIDCodegen("ICmpSLT", [](auto &b, Value *a, Value *d) { return b.CreateFCmpOLT(a, d); });
+  regMixedIDCodegen("ICmpSLE", [](auto &b, Value *a, Value *d) { return b.CreateFCmpOLE(a, d); });
+  regMixedIDCodegen("FCmpOEQ", [](auto &b, Value *a, Value *d) { return b.CreateFCmpOEQ(a, d); });
+
   // BigInt/Ratio Comparisons Codegen
   auto regZCmpCodegen = [&mgr, &intrinsics](const string &symbol, const string &fnName) {
     intrinsics[symbol] = [&mgr, fnName](auto &b, auto args) {

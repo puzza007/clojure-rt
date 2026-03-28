@@ -41,6 +41,21 @@ public:
   bool hasPushedResources() const { return !activeResources.empty(); }
   void clear();
 
+  // Save/restore state for nested function compilation (FnNode)
+  struct SavedState {
+    llvm::Value *exceptionSlot;
+    llvm::BasicBlock *terminalResumeBB;
+    std::vector<llvm::BasicBlock *> cleanupStack;
+    std::vector<TypedValue> activeResources;
+    size_t totalPushedResources;
+    size_t resourcesWithCleanup;
+    std::map<size_t, llvm::BasicBlock *> lpadCache;
+    const google::protobuf::RepeatedPtrField<MemoryManagementGuidance>* activeUnwindGuidance;
+    void *jitEnginePtr;
+  };
+  SavedState saveState();
+  void restoreState(SavedState state);
+
   const google::protobuf::RepeatedPtrField<MemoryManagementGuidance>* getActiveUnwindGuidance() const {
     return activeUnwindGuidance;
   }

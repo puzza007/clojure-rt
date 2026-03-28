@@ -181,6 +181,42 @@ void MemoryManagement::clear() {
   activeUnwindGuidance = nullptr;
 }
 
+MemoryManagement::SavedState MemoryManagement::saveState() {
+  SavedState s;
+  s.exceptionSlot = exceptionSlot;
+  s.terminalResumeBB = terminalResumeBB;
+  s.cleanupStack = std::move(cleanupStack);
+  s.activeResources = std::move(activeResources);
+  s.totalPushedResources = totalPushedResources;
+  s.resourcesWithCleanup = resourcesWithCleanup;
+  s.lpadCache = std::move(lpadCache);
+  s.activeUnwindGuidance = activeUnwindGuidance;
+  s.jitEnginePtr = jitEnginePtr;
+  // Reset to clean state (initFunction-like)
+  exceptionSlot = nullptr;
+  terminalResumeBB = nullptr;
+  cleanupStack.clear();
+  activeResources.clear();
+  totalPushedResources = 0;
+  resourcesWithCleanup = 0;
+  lpadCache.clear();
+  activeUnwindGuidance = nullptr;
+  jitEnginePtr = nullptr;
+  return s;
+}
+
+void MemoryManagement::restoreState(SavedState state) {
+  exceptionSlot = state.exceptionSlot;
+  terminalResumeBB = state.terminalResumeBB;
+  cleanupStack = std::move(state.cleanupStack);
+  activeResources = std::move(state.activeResources);
+  totalPushedResources = state.totalPushedResources;
+  resourcesWithCleanup = state.resourcesWithCleanup;
+  lpadCache = std::move(state.lpadCache);
+  activeUnwindGuidance = state.activeUnwindGuidance;
+  jitEnginePtr = state.jitEnginePtr;
+}
+
 void MemoryManagement::dynamicMemoryGuidance(
     const MemoryManagementGuidance &guidance) {
   auto name = guidance.variablename();
