@@ -242,8 +242,8 @@ TypedValue CodeGen::codegen(const Node &node,
     //   return codegen(node, node.subnode().isinstance(), typeRestrictions);
   case opInvoke:
     return codegen(node, node.subnode().invoke(), typeRestrictions);
-    // case opKeywordInvoke:
-    //   return codegen(node, node.subnode().keywordinvoke(), typeRestrictions);
+  case opKeywordInvoke:
+    return codegen(node, node.subnode().keywordinvoke(), typeRestrictions);
   case opLet:
     return codegen(node, node.subnode().let(), typeRestrictions);
   // case opLetfn:
@@ -344,8 +344,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   //   return getType(node, node.subnode().isinstance(), typeRestrictions);
   case opInvoke:
     return getType(node, node.subnode().invoke(), typeRestrictions);
-  // case opKeywordInvoke:
-  //   return getType(node, node.subnode().keywordinvoke(), typeRestrictions);
+  case opKeywordInvoke:
+    return getType(node, node.subnode().keywordinvoke(), typeRestrictions);
   case opLet:
     return getType(node, node.subnode().let(), typeRestrictions);
   // case opLetfn:

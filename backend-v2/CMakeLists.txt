@@ -142,6 +142,7 @@ set(BACKEND_SOURCES
       codegen/ops/HostInteropNode.cpp
       codegen/ops/FnNode.cpp
       codegen/ops/InvokeNode.cpp
+      codegen/ops/KeywordInvokeNode.cpp
       codegen/ops/LoopNode.cpp
       codegen/ops/RecurNode.cpp)
 
