@@ -413,9 +413,20 @@ bool CodeGen::canThrow(const Node &node) {
   case opStaticField:
   case opTheVar:
   case opLocal:
-  case opFn:
   case opFnMethod:
     return false;
+
+  case opFn: {
+    const auto &fn = node.subnode().fn();
+    for (int i = 0; i < fn.methods_size(); ++i) {
+      const auto &method = fn.methods(i).subnode().fnmethod();
+      for (int j = 0; j < method.closedovers_size(); ++j) {
+        if (canThrow(method.closedovers(j)))
+          return true;
+      }
+    }
+    return false;
+  }
 
   case opLet: {
     const auto &l = node.subnode().let();
