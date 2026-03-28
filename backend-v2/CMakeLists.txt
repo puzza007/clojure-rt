@@ -144,7 +144,9 @@ set(BACKEND_SOURCES
       codegen/ops/InvokeNode.cpp
       codegen/ops/KeywordInvokeNode.cpp
       codegen/ops/LoopNode.cpp
-      codegen/ops/RecurNode.cpp)
+      codegen/ops/RecurNode.cpp
+      codegen/ops/TryNode.cpp
+      codegen/ops/ThrowNode.cpp)
 
 add_subdirectory(runtime)
 

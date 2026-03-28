@@ -23,6 +23,13 @@ extern "C" {
 [[noreturn]] void
 throwInternalInconsistencyException_C(const char *errorMessage);
 
+// Exception introspection helpers for try/catch codegen
+const char *LanguageException_getName(void *exn);
+RTValue LanguageException_getMessage(void *exn);
+RTValue LanguageException_getPayload(void *exn);
+bool Exception_isInstance(const char *exceptionName,
+                          const char *catchClassName);
+
 #ifdef __cplusplus
 }
 #endif

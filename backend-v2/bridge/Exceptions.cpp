@@ -702,3 +702,46 @@ void throwCodeGenerationException(const std::string &errorMessage,
 }
 
 } // namespace rt
+
+// --- Exception helpers for try/catch codegen ---
+
+extern "C" const char *LanguageException_getName(void *exn) {
+  auto *e = static_cast<rt::LanguageException *>(exn);
+  return e->getName().c_str();
+}
+
+extern "C" RTValue LanguageException_getMessage(void *exn) {
+  auto *e = static_cast<rt::LanguageException *>(exn);
+  return e->getMessage();
+}
+
+extern "C" RTValue LanguageException_getPayload(void *exn) {
+  auto *e = static_cast<rt::LanguageException *>(exn);
+  return e->getPayload();
+}
+
+extern "C" bool Exception_isInstance(const char *exceptionName,
+                                     const char *catchClassName) {
+  if (strcmp(catchClassName, "Throwable") == 0 ||
+      strcmp(catchClassName, "Exception") == 0)
+    return true;
+
+  if (strcmp(exceptionName, catchClassName) == 0)
+    return true;
+
+  // RuntimeException subtypes
+  if (strcmp(catchClassName, "RuntimeException") == 0) {
+    return strcmp(exceptionName, "ArithmeticException") == 0 ||
+           strcmp(exceptionName, "IllegalArgumentException") == 0 ||
+           strcmp(exceptionName, "IllegalStateException") == 0 ||
+           strcmp(exceptionName, "UnsupportedOperationException") == 0 ||
+           strcmp(exceptionName, "IndexOutOfBoundsException") == 0 ||
+           strcmp(exceptionName, "ArityException") == 0 ||
+           strcmp(exceptionName, "ClassCastException") == 0 ||
+           strcmp(exceptionName, "NullPointerException") == 0 ||
+           strcmp(exceptionName, "NoMatchingOverloadException") == 0 ||
+           strcmp(exceptionName, "RuntimeException") == 0;
+  }
+
+  return false;
+}
