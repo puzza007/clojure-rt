@@ -2,6 +2,7 @@
 #include "Function.h"
 #include "Integer.h"
 #include "Hash.h"
+#include "PersistentVector.h"
 #include "RTValue.h"
 #include "String.h"
 #include <stdarg.h>
@@ -58,14 +59,33 @@ bool Function_validCallWithArgCount(ClojureFunction *self, uword_t argCount) {
   return false;
 }
 
-/* outside refcount system */
+/* outside refcount system - only matches non-variadic exact arity */
 void *Function_getBaselineImpl(ClojureFunction *self, uword_t argCount) {
   for (uword_t i = 0; i < self->methodCount; i++) {
     FunctionMethod *m = &self->methods[i];
     if (!m->isVariadic && m->fixedArity == argCount) return m->baselineImplementation;
-    if (m->isVariadic && m->fixedArity <= argCount) return m->baselineImplementation;
   }
   return NULL;
+}
+
+/* outside refcount system - returns NULL on no match */
+FunctionMethod *Function_findVariadicMethod(ClojureFunction *self, uword_t argCount) {
+  for (uword_t i = 0; i < self->methodCount; i++) {
+    FunctionMethod *m = &self->methods[i];
+    if (m->isVariadic && m->fixedArity <= argCount)
+      return m;
+  }
+  return NULL;
+}
+
+/* outside refcount system (w.r.t. self), args must be retained by caller */
+RTValue Function_packRestArgs(RTValue *args, uword_t startIdx, uword_t argCount) {
+  PersistentVector *v = PersistentVector_transient(PersistentVector_create());
+  for (uword_t i = startIdx; i < argCount; i++) {
+    v = PersistentVector_conj_BANG_(v, args[i]);
+  }
+  v = PersistentVector_persistent_BANG_(v);
+  return RT_boxPtr(v);
 }
 
 /* outside refcount system */

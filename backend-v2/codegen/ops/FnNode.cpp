@@ -66,7 +66,7 @@ TypedValue CodeGen::codegen(const Node &node, const FnNode &subnode,
     }
 
     // --- Create LLVM function for this method body ---
-    int numParams = method->fixedarity();
+    int numParams = method->fixedarity() + (method->isvariadic() ? 1 : 0);
     string methodFnName =
         "fn_" + to_string(funId) + "_m" + to_string(pos);
 

@@ -48,6 +48,8 @@ void Function_fillMethod(struct ClojureFunction *self, uword_t position,
 
 bool Function_validCallWithArgCount(ClojureFunction *self, uword_t argCount);
 void *Function_getBaselineImpl(ClojureFunction *self, uword_t argCount);
+FunctionMethod *Function_findVariadicMethod(ClojureFunction *self, uword_t argCount);
+RTValue Function_packRestArgs(RTValue *args, uword_t startIdx, uword_t argCount);
 bool Function_equals(ClojureFunction *self, ClojureFunction *other);
 uword_t Function_hash(ClojureFunction *self);
 String *Function_toString(ClojureFunction *self);
