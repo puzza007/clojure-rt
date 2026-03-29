@@ -648,7 +648,7 @@
       true (assoc :body updated-body)
       true (assoc :catches updated-catches)
       updated-finally (assoc :finally updated-finally)
-      true (assoc :all-catches-owned all-catches-owned) ;; drop these variables if execution went from try block directly to finally
+      true (assoc :all-catches-owned (->> all-catches-owned (map #(vector % -1)) (into {}))) ;; drop these variables if execution went from try block directly to finally
       true (set-unwind unwind-owned))))
 
 (defmethod -memory-management-pass :catch
@@ -745,7 +745,9 @@
              m
              
              (map? m)
-             (reduce (fn [m k] (cond-> m (contains? m k) (update k f)))
+             (reduce (fn [m k] (cond-> m
+                                      (and (contains? m k) (map? (get m k)))
+                                      (update k f)))
                      m
                      [:drop-memory :unwind-memory :all-catches-owned])
              

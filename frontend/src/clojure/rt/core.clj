@@ -35,12 +35,18 @@
              [box :refer [box]]
              [constant-lifter :refer [constant-lift]]
              [classify-invoke :refer [classify-invoke]]
-             [validate :refer [validate validate-call validate-interfaces]]
+             [validate :refer [validate validate-call validate-interfaces -validate]]
              [infer-tag :refer [infer-tag]]
              [validate-loop-locals :refer [validate-loop-locals]]
              [warn-on-reflection :refer [warn-on-reflection]]
              [emit-form :refer [emit-form]]]))
 
+;; Skip JVM class resolution for :new nodes -- user-defined deftypes don't
+;; exist on the JVM classpath. validate-call and validate-interfaces are
+;; already no-op'd below.
+;; Skip JVM class resolution for user-defined types that don't exist on the JVM
+(defmethod -validate :new [ast] ast)
+(defmethod -validate :maybe-class [ast] ast)
 
 (def rt-passes
   "Set of passes that will be run on the AST by #'run-passes"

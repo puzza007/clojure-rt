@@ -25,6 +25,7 @@ uword_t Deftype_hash(Deftype *self);
 String *Deftype_toString(Deftype *self);
 void Deftype_destroy(Deftype *self);
 RTValue Deftype_getIndexedField(Deftype *self, uword_t index);
+RTValue Deftype_getFieldByName(Deftype *self, const char *fieldName);
 
 #ifdef __cplusplus
 }

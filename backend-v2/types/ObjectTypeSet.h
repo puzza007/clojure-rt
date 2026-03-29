@@ -245,6 +245,7 @@ public:
     retVal.insert(classType);
     retVal.insert(persistentArrayMapType);
     retVal.insert(varType);
+    retVal.insert(deftypeType);
     retVal.isBoxed = true;
     return retVal;
   }
@@ -298,6 +299,8 @@ public:
         return "LA";
       case varType:
         return "LQ";
+      case deftypeType:
+        return "LT";
       }
   }
 
@@ -358,6 +361,8 @@ public:
       return ":chm";
     case varType:
       return ":var";
+    case deftypeType:
+      return ":deftype";
     default:
       return ":unknown";
     }
