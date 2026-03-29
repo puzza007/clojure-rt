@@ -36,6 +36,7 @@ set(SOURCES
     RuntimeInterface.c
     PersistentArrayMap.c
     Var.c
+    Deftype.c
     Numbers.c
     Hasheq.c
     JITSafety.c)
