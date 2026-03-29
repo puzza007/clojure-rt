@@ -141,6 +141,8 @@ set(BACKEND_SOURCES
       codegen/ops/InstanceCallNode.cpp
       codegen/ops/HostInteropNode.cpp
       codegen/ops/CaseNode.cpp
+      codegen/ops/IsInstanceNode.cpp
+      codegen/ops/InstanceFieldNode.cpp
       codegen/ops/FnNode.cpp
       codegen/ops/InvokeNode.cpp
       codegen/ops/KeywordInvokeNode.cpp
