@@ -13,8 +13,38 @@
              [cleanup :refer [cleanup]]
              [elide-meta :refer [elide-meta]]]))
 
+(defn- register-stub-class
+  "Generate a minimal JVM class stub so the analyzer can resolve constructor
+   and field access forms for user-defined deftypes."
+  [class-name fields]
+  (let [internal-name (.replace (str class-name) "." "/")
+        cw (org.objectweb.asm.ClassWriter. org.objectweb.asm.ClassWriter/COMPUTE_FRAMES)]
+    (.visit cw org.objectweb.asm.Opcodes/V1_8
+            (+ org.objectweb.asm.Opcodes/ACC_PUBLIC
+               org.objectweb.asm.Opcodes/ACC_SUPER)
+            internal-name nil "java/lang/Object" nil)
+    ;; Add public fields for each deftype field
+    (doseq [field fields]
+      (.visitField cw org.objectweb.asm.Opcodes/ACC_PUBLIC
+                   (str field) "Ljava/lang/Object;" nil nil))
+    ;; Add no-arg constructor
+    (let [mv (.visitMethod cw org.objectweb.asm.Opcodes/ACC_PUBLIC
+                           "<init>" "()V" nil nil)]
+      (.visitCode mv)
+      (.visitVarInsn mv org.objectweb.asm.Opcodes/ALOAD 0)
+      (.visitMethodInsn mv org.objectweb.asm.Opcodes/INVOKESPECIAL
+                        "java/lang/Object" "<init>" "()V" false)
+      (.visitInsn mv org.objectweb.asm.Opcodes/RETURN)
+      (.visitMaxs mv 1 1)
+      (.visitEnd mv))
+    (.visitEnd cw)
+    (let [bytes (.toByteArray cw)
+          loader (clojure.lang.RT/makeClassLoader)]
+      (.defineClass loader (str class-name) bytes nil))))
+
 (defn parse-deftype*
   [[_ name class-name fields _ interfaces & methods :as form] env]
+  (register-stub-class class-name fields)
   (let [interfaces (disj (set (mapv maybe-class interfaces)) Object)
         this-methods (:methods (meta name))
         superclass (if (contains? (meta name) :superclass)

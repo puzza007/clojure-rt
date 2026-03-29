@@ -40,6 +40,10 @@ public:
   llvm::BasicBlock* getLandingPad(size_t skipCount = 0);
   bool hasPushedResources() const { return !activeResources.empty(); }
   void clear();
+  // Replace the terminal resume with a branch to a catch handler.
+  // Returns the exception slot Value* (holds {ptr, i32}) or nullptr if
+  // no exception infrastructure was created.
+  llvm::Value *redirectTerminalResume(llvm::BasicBlock *catchBB);
 
   // Save/restore state for nested function compilation (FnNode)
   struct SavedState {

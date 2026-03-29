@@ -17,122 +17,77 @@ TypedValue CodeGen::codegen(const Node &node, const TryNode &subnode,
 
   FunctionType *voidPtrFT =
       FunctionType::get(types.ptrTy, {types.ptrTy}, false);
-  FunctionType *boolPtrPtrFT =
-      FunctionType::get(types.i1Ty, {types.ptrTy, types.ptrTy}, false);
   FunctionType *rtvalPtrFT =
       FunctionType::get(types.RT_valueTy, {types.ptrTy}, false);
   FunctionType *endCatchFT =
       FunctionType::get(types.voidTy, {}, false);
   FunctionType *rethrowFT =
       FunctionType::get(types.voidTy, {}, false);
+  FunctionType *boolPtrPtrFT =
+      FunctionType::get(types.i1Ty, {types.ptrTy, types.ptrTy}, false);
 
   bool hasFinally = subnode.has_finally();
 
-  // --- Compile try body as a separate LLVM function ---
-  // This allows us to `invoke` it and catch exceptions at our landing pad.
-  static uint64_t tryCounter = 0;
-  string tryFnName = "__try_body_" + to_string(tryCounter++);
-  FunctionType *tryFnTy = FunctionType::get(types.RT_valueTy, {}, false);
-  Function *tryFn = Function::Create(
-      tryFnTy, Function::ExternalLinkage, tryFnName, *TheModule);
-  tryFn->addFnAttr("frame-pointer", "all");
+  BasicBlock *catchLpadBB =
+      BasicBlock::Create(TheContext, "catch_lpad", parentFn);
+  BasicBlock *mergeBB =
+      BasicBlock::Create(TheContext, "try_merge", parentFn);
 
-  // Set up personality function
-  FunctionType *personalityFnTy = FunctionType::get(types.i32Ty, true);
-  auto pFn = TheModule->getOrInsertFunction("__gxx_personality_v0",
-                                             personalityFnTy);
-  tryFn->setPersonalityFn(cast<Function>(pFn.getCallee()));
-
-  // Save outer context and compile try body in the new function
-  auto savedIP = Builder.saveIP();
+  // Save MM state, set up fresh MM for the try body.
+  // After compiling the try body, redirect MM's terminal resume to our
+  // catch landing pad. This way all exception-throwing invokes in the
+  // try body flow through MM cleanup and then to our catch handler.
   auto savedMM = memoryManagement.saveState();
-  auto savedLexicalBlocks = LexicalBlocks;
-
-  BasicBlock *tryEntryBB =
-      BasicBlock::Create(TheContext, "entry", tryFn);
-  Builder.SetInsertPoint(tryEntryBB);
-  memoryManagement.initFunction(tryFn);
-
-  // Set debug info BEFORE enterSafetySection to avoid wrong-subprogram error
-  auto env = node.env();
-  string fileName = env.file().empty() ? CU->getFilename().str() : env.file();
-  string dir = ".";
-  if (!env.file().empty()) {
-    size_t lastSlash = fileName.find_last_of('/');
-    if (lastSlash != string::npos) {
-      dir = fileName.substr(0, lastSlash);
-      fileName = fileName.substr(lastSlash + 1);
-    }
-  } else {
-    dir = CU->getDirectory().str();
-  }
-  DIFile *Unit = DIB->createFile(fileName, dir);
-  DISubroutineType *AsmSig =
-      DIB->createSubroutineType(DIB->getOrCreateTypeArray({}));
-  DISubprogram *SP = DIB->createFunction(
-      Unit, tryFnName, tryFnName, Unit, env.line(), AsmSig, env.line(),
-      DINode::FlagPrototyped, DISubprogram::SPFlagDefinition);
-  tryFn->setSubprogram(SP);
-  LexicalBlocks.clear();
-  LexicalBlocks.push_back(SP);
-  Builder.SetCurrentDebugLocation(
-      DILocation::get(TheContext, env.line(), env.column(), SP));
-
+  memoryManagement.initFunction(parentFn);
   memoryManagement.enterSafetySection(jitEnginePtr);
 
+  // Compile try body inline (same function, can access enclosing variables)
   TypedValue tryResult = codegen(subnode.body(), ObjectTypeSet::all());
   Value *tryResultBoxed = tryResult.value
       ? valueEncoder.box(tryResult).value
       : ConstantInt::get(types.RT_valueTy, 0);
+
   memoryManagement.leaveSafetySection(jitEnginePtr);
-  Builder.CreateRet(tryResultBoxed);
-  LexicalBlocks.pop_back();
-  verifyFunction(*tryFn);
 
-  // Restore outer context
-  Builder.restoreIP(savedIP);
-  memoryManagement.restoreState(std::move(savedMM));
-  LexicalBlocks = savedLexicalBlocks;
-  if (!LexicalBlocks.empty()) {
-    Builder.SetCurrentDebugLocation(
-        DILocation::get(TheContext, env.line(), env.column(),
-                        LexicalBlocks.back()));
-  }
+  // Redirect MM's terminal resume to our catch landing pad
+  Value *exceptionSlot =
+      memoryManagement.redirectTerminalResume(catchLpadBB);
 
-  // --- Invoke the try body, catching exceptions at our landing pad ---
-  BasicBlock *tryNormalBB =
-      BasicBlock::Create(TheContext, "try_normal", parentFn);
-  BasicBlock *catchLpadBB =
-      BasicBlock::Create(TheContext, "catch_lpad", parentFn);
-
-  InvokeInst *tryCall = Builder.CreateInvoke(
-      tryFn, tryNormalBB, catchLpadBB, {}, "try_result");
-
-  // --- Normal path (no exception) ---
-  Builder.SetInsertPoint(tryNormalBB);
-  BasicBlock *mergeBB =
-      BasicBlock::Create(TheContext, "try_merge", parentFn);
-
-  Value *normalResult = tryCall;
-  BasicBlock *normalExitBB = tryNormalBB;
-
+  // Normal exit from try body
+  BasicBlock *tryExitBB = Builder.GetInsertBlock();
+  Value *normalResult = tryResultBoxed;
   if (hasFinally) {
     codegen(subnode.finally(), ObjectTypeSet::all());
-    normalExitBB = Builder.GetInsertBlock();
+    tryExitBB = Builder.GetInsertBlock();
   }
   Builder.CreateBr(mergeBB);
 
-  // --- Catch landing pad ---
-  Builder.SetInsertPoint(catchLpadBB);
-  LandingPadInst *lp = Builder.CreateLandingPad(lpadType, 1, "catch_lp");
-  lp->addClause(typeinfoGV);
+  // Restore outer MM state
+  memoryManagement.restoreState(std::move(savedMM));
 
-  Value *exnPtr = Builder.CreateExtractValue(lp, 0, "exn_ptr");
+  // --- Catch landing pad ---
+  // If the MM created exception infrastructure, our catchLpadBB is
+  // branched to from the terminal resume. We load the exception from
+  // the exception slot. If no exception infrastructure was created
+  // (try body can't throw), catchLpadBB is unreachable.
+  Builder.SetInsertPoint(catchLpadBB);
+
+  if (!exceptionSlot) {
+    // Try body can't throw -- catch is unreachable
+    Builder.CreateUnreachable();
+    Builder.SetInsertPoint(mergeBB);
+    return TypedValue(ObjectTypeSet::dynamicType(), tryResultBoxed);
+  }
+
+  // Load the exception from the MM's exception slot
+  Value *exVal = Builder.CreateLoad(lpadType, exceptionSlot, "exn_val");
+  Value *exnPtr = Builder.CreateExtractValue(exVal, 0, "exn_ptr");
+
   Value *exnObj = Builder.CreateCall(
       TheModule->getOrInsertFunction("__cxa_begin_catch", voidPtrFT),
       {exnPtr}, "exn_obj");
 
-  // Get exception name and message for dispatch
+  // Get exception name and message
   Value *exnName = Builder.CreateCall(
       TheModule->getOrInsertFunction("LanguageException_getName",
           FunctionType::get(types.ptrTy, {types.ptrTy}, false)),
@@ -154,7 +109,6 @@ TypedValue CodeGen::codegen(const Node &node, const TryNode &subnode,
   for (int i = 0; i < subnode.catches_size(); i++) {
     auto &catchNode = subnode.catches(i).subnode().catch_();
 
-    // Extract simple class name from the catch clause's class constant
     string className = catchNode.class_().subnode().const_().val();
     if (className.rfind("class ", 0) == 0)
       className = className.substr(6);
@@ -175,16 +129,13 @@ TypedValue CodeGen::codegen(const Node &node, const TryNode &subnode,
         : noMatchBB;
 
     Builder.CreateCondBr(isMatch, catchBodyBB, nextCatchBB);
-
-    // --- Catch body ---
     Builder.SetInsertPoint(catchBodyBB);
+
     Builder.CreateCall(
         TheModule->getOrInsertFunction("__cxa_end_catch", endCatchFT), {});
 
-    // Bind exception to local variable
     variableBindingStack.push();
     variableTypesBindingsStack.push();
-
     auto &localBinding = catchNode.local().subnode().binding();
     TypedValue exnTV(ObjectTypeSet::dynamicType(), exnMessage);
     variableBindingStack.set(localBinding.name(), exnTV);
@@ -210,7 +161,7 @@ TypedValue CodeGen::codegen(const Node &node, const TryNode &subnode,
       Builder.SetInsertPoint(nextCatchBB);
   }
 
-  // --- No match: rethrow ---
+  // No match: rethrow
   Builder.SetInsertPoint(noMatchBB);
   Builder.CreateCall(
       TheModule->getOrInsertFunction("__cxa_end_catch", endCatchFT), {});
@@ -222,14 +173,13 @@ TypedValue CodeGen::codegen(const Node &node, const TryNode &subnode,
   Builder.SetInsertPoint(mergeBB);
   PHINode *phi = Builder.CreatePHI(types.RT_valueTy,
       1 + catchResults.size(), "try_final");
-  phi->addIncoming(normalResult, normalExitBB);
+  phi->addIncoming(normalResult, tryExitBB);
   for (auto &cr : catchResults)
     phi->addIncoming(cr.result, cr.exitBB);
 
   return TypedValue(ObjectTypeSet::dynamicType(), phi);
 }
 
-// CatchNode cannot be compiled standalone
 TypedValue CodeGen::codegen(const Node &node, const CatchNode &subnode,
                             const ObjectTypeSet &typeRestrictions) {
   throwCodeGenerationException(

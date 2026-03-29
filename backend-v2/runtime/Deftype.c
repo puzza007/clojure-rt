@@ -1,6 +1,7 @@
 #include "Deftype.h"
 #include "Hash.h"
 #include "Object.h"
+#include "Symbol.h"
 #include <stdarg.h>
 
 Deftype *Deftype_create(Class *_class, uword_t fieldCount, ...) {
@@ -42,6 +43,20 @@ void Deftype_destroy(Deftype *self) {
     release(self->values[i]);
   }
   release((RTValue)self->_class);
+}
+
+// Non-consuming: does not release self
+RTValue Deftype_getFieldByName(Deftype *self, const char *fieldName) {
+  RTValue sym = Symbol_create(String_createDynamicStr(fieldName));
+  // Class_fieldIndex consumes both self and field, so retain the class first
+  Ptr_retain(self->_class);
+  int32_t idx = Class_fieldIndex(self->_class, sym);
+  if (idx < 0) {
+    return RT_boxNil();
+  }
+  RTValue val = self->values[idx];
+  retain(val);
+  return val;
 }
 
 RTValue Deftype_getIndexedField(Deftype *self, uword_t index) {

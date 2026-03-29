@@ -217,6 +217,23 @@ void MemoryManagement::restoreState(SavedState state) {
   jitEnginePtr = state.jitEnginePtr;
 }
 
+llvm::Value *MemoryManagement::redirectTerminalResume(llvm::BasicBlock *catchBB) {
+  if (!terminalResumeBB || !exceptionSlot)
+    return nullptr;
+
+  // Remove the resume instruction and replace with a branch to catchBB
+  terminalResumeBB->back().eraseFromParent(); // remove resume
+  // Also remove the leaveSafetySection call + load before it
+  while (!terminalResumeBB->empty())
+    terminalResumeBB->back().eraseFromParent();
+
+  llvm::IRBuilder<> tmpBuilder(terminalResumeBB);
+  tmpBuilder.SetCurrentDebugLocation(builder.getCurrentDebugLocation());
+  tmpBuilder.CreateBr(catchBB);
+
+  return exceptionSlot;
+}
+
 void MemoryManagement::dynamicMemoryGuidance(
     const MemoryManagementGuidance &guidance) {
   auto name = guidance.variablename();
