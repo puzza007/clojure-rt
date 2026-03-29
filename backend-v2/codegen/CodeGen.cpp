@@ -220,8 +220,8 @@ TypedValue CodeGen::codegen(const Node &node,
     return codegen(node, node.subnode().catch_(), typeRestrictions);
   case opDef:
     return codegen(node, node.subnode().def(), typeRestrictions);
-  // case opDeftype:
-  //   return codegen(node, node.subnode().deftype(), typeRestrictions);
+  case opDeftype:
+    return codegen(node, node.subnode().deftype(), typeRestrictions);
   case opDo:
     return codegen(node, node.subnode().do_(), typeRestrictions);
   case opFn:
@@ -252,14 +252,14 @@ TypedValue CodeGen::codegen(const Node &node,
     return codegen(node, node.subnode().local(), typeRestrictions);
   case opLoop:
     return codegen(node, node.subnode().loop(), typeRestrictions);
-  // case opMethod:
-  //   return codegen(node, node.subnode().method(), typeRestrictions);
+  case opMethod:
+    return codegen(node, node.subnode().method(), typeRestrictions);
   // case opMonitorEnter:
   //   return codegen(node, node.subnode().monitorenter(), typeRestrictions);
   // case opMonitorExit:
   //   return codegen(node, node.subnode().monitorexit(), typeRestrictions);
-  // case opNew:
-  //   return codegen(node, node.subnode().new_(), typeRestrictions);
+  case opNew:
+    return codegen(node, node.subnode().new_(), typeRestrictions);
   // case opPrimInvoke:
   //   return codegen(node, node.subnode().priminvoke(), typeRestrictions);
   // case opProtocolInvoke:
@@ -322,8 +322,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
     return getType(node, node.subnode().catch_(), typeRestrictions);
   case opDef:
     return getType(node, node.subnode().def(), typeRestrictions);
-  // case opDeftype:
-  //   return getType(node, node.subnode().deftype(), typeRestrictions);
+  case opDeftype:
+    return getType(node, node.subnode().deftype(), typeRestrictions);
   case opDo:
     return getType(node, node.subnode().do_(), typeRestrictions);
   case opFn:
@@ -354,14 +354,14 @@ ObjectTypeSet CodeGen::getType(const Node &node,
     return getType(node, node.subnode().local(), typeRestrictions);
   case opLoop:
     return getType(node, node.subnode().loop(), typeRestrictions);
-  // case opMethod:
-  //   return getType(node, node.subnode().method(), typeRestrictions);
+  case opMethod:
+    return getType(node, node.subnode().method(), typeRestrictions);
   // case opMonitorEnter:
   //   return getType(node, node.subnode().monitorenter(), typeRestrictions);
   // case opMonitorExit:
   //   return getType(node, node.subnode().monitorexit(), typeRestrictions);
-  // case opNew:
-  //   return getType(node, node.subnode().new_(), typeRestrictions);
+  case opNew:
+    return getType(node, node.subnode().new_(), typeRestrictions);
   // case opPrimInvoke:
   //   return getType(node, node.subnode().priminvoke(), typeRestrictions);
   // case opProtocolInvoke:

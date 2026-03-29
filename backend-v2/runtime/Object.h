@@ -119,6 +119,7 @@ inline bool Ptr_isReusable(void* ptr);
 #include "String.h"
 #include "Symbol.h"
 #include "Var.h"
+#include "Deftype.h"
 
 inline void *allocate(size_t size) {
 #ifndef USE_MEMORY_BANKS
@@ -281,6 +282,9 @@ inline void Object_destroy(Object *restrict self, bool deallocateChildren) {
     break;
   case varType:
     Var_destroy((Var *)self);
+    break;
+  case deftypeType:
+    Deftype_destroy((Deftype *)self);
     break;
 
   default:
@@ -445,6 +449,8 @@ inline uword_t Object_hash(Object *restrict self) {
     return PersistentArrayMap_hash((PersistentArrayMap *)self);
   case varType:
     return Var_hash((Var *)self);
+  case deftypeType:
+    return Deftype_hash((Deftype *)self);
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
                     "should be computed earlier.");
@@ -524,6 +530,9 @@ inline bool Object_equals(Object *self, Object *other) {
   case varType:
     return Var_equals((Var *)self, (Var *)other);
     break;
+  case deftypeType:
+    return Deftype_equals((Deftype *)self, (Deftype *)other);
+    break;
 
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
@@ -584,6 +593,8 @@ inline String *Object_toString(Object *restrict self) {
     return PersistentArrayMap_toString((PersistentArrayMap *)self);
   case varType:
     return Var_toString((Var *)self);
+  case deftypeType:
+    return Deftype_toString((Deftype *)self);
   default:
     assert(false && "Internal error: Object_toString got an unsupported type");
   }

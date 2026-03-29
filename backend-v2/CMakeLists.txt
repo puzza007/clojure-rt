@@ -143,6 +143,8 @@ set(BACKEND_SOURCES
       codegen/ops/CaseNode.cpp
       codegen/ops/IsInstanceNode.cpp
       codegen/ops/InstanceFieldNode.cpp
+      codegen/ops/DeftypeNode.cpp
+      codegen/ops/NewNode.cpp
       codegen/ops/FnNode.cpp
       codegen/ops/InvokeNode.cpp
       codegen/ops/KeywordInvokeNode.cpp
