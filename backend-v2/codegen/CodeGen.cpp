@@ -210,12 +210,12 @@ TypedValue CodeGen::codegen(const Node &node,
 
   // case opBinding:
   //   return codegen(node, node.subnode().binding(), typeRestrictions);
-  // case opCase:
-  //   return codegen(node, node.subnode().case_(), typeRestrictions);
-  // case opCaseTest:
-  //   return codegen(node, node.subnode().casetest(), typeRestrictions);
-  // case opCaseThen:
-  //   return codegen(node, node.subnode().casethen(), typeRestrictions);
+  case opCase:
+    return codegen(node, node.subnode().case_(), typeRestrictions);
+  case opCaseTest:
+    return codegen(node, node.subnode().casetest(), typeRestrictions);
+  case opCaseThen:
+    return codegen(node, node.subnode().casethen(), typeRestrictions);
   case opCatch:
     return codegen(node, node.subnode().catch_(), typeRestrictions);
   case opDef:
@@ -312,12 +312,12 @@ ObjectTypeSet CodeGen::getType(const Node &node,
 
   // case opBinding:
   //   return getType(node, node.subnode().binding(), typeRestrictions);
-  // case opCase:
-  //   return getType(node, node.subnode().case_(), typeRestrictions);
-  // case opCaseTest:
-  //   return getType(node, node.subnode().casetest(), typeRestrictions);
-  // case opCaseThen:
-  //   return getType(node, node.subnode().casethen(), typeRestrictions);
+  case opCase:
+    return getType(node, node.subnode().case_(), typeRestrictions);
+  case opCaseTest:
+    return getType(node, node.subnode().casetest(), typeRestrictions);
+  case opCaseThen:
+    return getType(node, node.subnode().casethen(), typeRestrictions);
   case opCatch:
     return getType(node, node.subnode().catch_(), typeRestrictions);
   case opDef:

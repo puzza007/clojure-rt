@@ -140,6 +140,7 @@ set(BACKEND_SOURCES
       codegen/ops/WithMetaNode.cpp
       codegen/ops/InstanceCallNode.cpp
       codegen/ops/HostInteropNode.cpp
+      codegen/ops/CaseNode.cpp
       codegen/ops/FnNode.cpp
       codegen/ops/InvokeNode.cpp
       codegen/ops/KeywordInvokeNode.cpp
