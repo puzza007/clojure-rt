@@ -37,6 +37,7 @@ set(SOURCES
     PersistentArrayMap.c
     Var.c
     Numbers.c
+    Hasheq.c
     JITSafety.c)
 
 add_library(runtime STATIC ${SOURCES})
