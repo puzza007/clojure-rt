@@ -232,8 +232,9 @@ TypedValue CodeGen::codegen(const Node &node,
     return codegen(node, node.subnode().hostinterop(), typeRestrictions);
   case opIf:
     return codegen(node, node.subnode().if_(), typeRestrictions);
-  // case opImport:
-  //   return codegen(node, node.subnode().import(), typeRestrictions);
+  case opImport:
+    // Import is a no-op for our compiler (no JVM class loading needed)
+    return dynamicConstructor.createNil();
   case opInstanceCall:
     return codegen(node, node.subnode().instancecall(), typeRestrictions);
   case opInstanceField:
@@ -334,8 +335,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
     return getType(node, node.subnode().hostinterop(), typeRestrictions);
   case opIf:
     return getType(node, node.subnode().if_(), typeRestrictions);
-  // case opImport:
-  //   return getType(node, node.subnode().import(), typeRestrictions);
+  case opImport:
+    return ObjectTypeSet(nilType);
   case opInstanceCall:
     return getType(node, node.subnode().instancecall(), typeRestrictions);
   case opInstanceField:
