@@ -147,6 +147,10 @@ public:
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const KeywordInvokeNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const InstanceFieldNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const IsInstanceNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const CaseNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const CaseTestNode &subnode,
@@ -206,6 +210,10 @@ public:
   ObjectTypeSet getType(const Node &node, const InvokeNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const KeywordInvokeNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const InstanceFieldNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const IsInstanceNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const CaseNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
