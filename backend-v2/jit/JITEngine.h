@@ -101,7 +101,8 @@ private:
   void optimize(llvm::Module &M, llvm::OptimizationLevel Level, const std::string &entryPoint);
   void registerRuntimeSymbols();
 
-  // Private helper for common JIT logic
+public:
+  // JIT compilation helper: takes a codegen lambda, compiles to native code
   std::shared_future<JITResult> compileGeneric(
       std::function<std::string(CodeGen&)> codegenFunc,
       const std::string &moduleName,
@@ -109,7 +110,8 @@ private:
       bool printModule,
       bool reuseIfExists = false);
 
-public:
+  ThreadsafeCompilerState &getCompilerState() { return threadsafeState; }
+
   JITEngine(ThreadsafeCompilerState &state,
             size_t numThreads = std::thread::hardware_concurrency());
   ~JITEngine();

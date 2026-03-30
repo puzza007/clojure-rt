@@ -99,6 +99,10 @@ public:
   }
 
   std::string codegenTopLevel(const Node &node);
+  std::string compileSpecializedFnMethod(
+      const Node &fnNode, int methodIndex,
+      const std::vector<ObjectTypeSet> &argTypes,
+      uint64_t uniqueId);
   std::string generateInstanceCallBridge(
       const std::string &methodName,
       const ObjectTypeSet &instanceType,

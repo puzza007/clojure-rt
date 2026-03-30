@@ -3,6 +3,7 @@
 #include "../cljassert.h"
 #include "CleanupChainGuard.h"
 #include "TypedValue.h"
+#include "runtime/Function.h"
 #include "runtime/Object.h"
 #include "runtime/RTValue.h"
 #include "runtime/String.h"
@@ -83,6 +84,181 @@ std::string CodeGen::codegenTopLevel(const Node &node) {
 
   LexicalBlocks.pop_back();
   verifyFunction(*F);
+  return fname;
+}
+
+// Terminate any BBs that don't have terminators (dead code from recur etc.)
+static void terminateDeadBlocks(llvm::Function *F, llvm::LLVMContext &ctx) {
+  for (auto &BB : *F) {
+    if (!BB.getTerminator()) {
+      llvm::IRBuilder<> tmpBuilder(&BB);
+      tmpBuilder.CreateUnreachable();
+    }
+  }
+}
+
+std::string CodeGen::compileSpecializedFnMethod(
+    const Node &fnNode, int methodIndex,
+    const std::vector<ObjectTypeSet> &argTypes,
+    uint64_t uniqueId) {
+  CLJ_ASSERT(TSContext != nullptr, "Codegen was moved");
+
+  const auto &subnode = fnNode.subnode().fn();
+
+  // Sort methods same as FnNode to find the right one by index
+  struct MethodEntry {
+    const FnMethodNode *method;
+    int originalIndex;
+  };
+  std::vector<MethodEntry> sortedMethods;
+  for (int i = 0; i < subnode.methods_size(); i++) {
+    sortedMethods.push_back({&subnode.methods(i).subnode().fnmethod(), i});
+  }
+  std::sort(sortedMethods.begin(), sortedMethods.end(),
+            [](const MethodEntry &a, const MethodEntry &b) {
+              if (a.method->isvariadic() && !b.method->isvariadic())
+                return false;
+              if (!a.method->isvariadic() && b.method->isvariadic())
+                return true;
+              return a.method->fixedarity() > b.method->fixedarity();
+            });
+
+  if (methodIndex < 0 || methodIndex >= (int)sortedMethods.size()) {
+    throwInternalInconsistencyException("Invalid method index for specialization");
+  }
+
+  auto *method = sortedMethods[methodIndex].method;
+  int numParams = method->fixedarity() + (method->isvariadic() ? 1 : 0);
+
+  // Build function name matching what specialiseDynamicFn expects
+  std::string fname = "fn_" + std::to_string(uniqueId) + "_m" +
+      std::to_string(methodIndex) + "_" +
+      ObjectTypeSet::typeStringForArgs(argTypes);
+
+  // Create LLVM function: args use specialized types where possible
+  std::vector<llvm::Type *> paramTypes;
+  for (size_t i = 0; i < argTypes.size() && (int)i < numParams; i++) {
+    paramTypes.push_back(types.RT_valueTy); // All args still as RTValue for now
+  }
+  paramTypes.push_back(types.RT_valueTy); // fnObj
+
+  llvm::FunctionType *FT =
+      llvm::FunctionType::get(types.RT_valueTy, paramTypes, false);
+  llvm::Function *F =
+      llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fname, *TheModule);
+  F->addFnAttr("frame-pointer", "all");
+
+  // Entry block
+  llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", F);
+  Builder.SetInsertPoint(BB);
+
+  memoryManagement.initFunction(F);
+
+  // Set up debug info like codegenTopLevel does
+  auto env = fnNode.env();
+  std::string fileName = env.file().empty() ? CU->getFilename().str() : env.file();
+  std::string dir = ".";
+  if (!env.file().empty()) {
+    size_t lastSlash = fileName.find_last_of('/');
+    if (lastSlash != std::string::npos) {
+      dir = fileName.substr(0, lastSlash);
+      fileName = fileName.substr(lastSlash + 1);
+    }
+  } else {
+    dir = CU->getDirectory().str();
+  }
+  llvm::DIFile *Unit = DIB->createFile(fileName, dir);
+  llvm::DISubroutineType *AsmSig =
+      DIB->createSubroutineType(DIB->getOrCreateTypeArray({}));
+  llvm::DISubprogram *SP = DIB->createFunction(
+      Unit, fname, fname, Unit, env.line(), AsmSig, env.line(),
+      llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
+  F->setSubprogram(SP);
+  LexicalBlocks.push_back(SP);
+  Builder.SetCurrentDebugLocation(
+      llvm::DILocation::get(TheContext, env.line(), env.column(), SP));
+
+  // Personality function for exception handling
+  llvm::FunctionType *personalityFnTy =
+      llvm::FunctionType::get(types.i32Ty, true);
+  personalityFn =
+      TheModule->getOrInsertFunction("__gxx_personality_v0", personalityFnTy);
+  F->setPersonalityFn(llvm::cast<llvm::Function>(personalityFn.getCallee()));
+
+  memoryManagement.enterSafetySection(jitEnginePtr);
+
+  // Bind parameters with KNOWN types (the specialization!)
+  variableBindingStack.push();
+  variableTypesBindingsStack.push();
+
+  auto argIt = F->arg_begin();
+  for (int p = 0; p < method->params_size() && p < (int)argTypes.size(); p++) {
+    auto &paramBinding = method->params(p).subnode().binding();
+    // Parameter has the specialized type, not ObjectTypeSet::all()
+    TypedValue paramTV(argTypes[p], &*argIt);
+    variableBindingStack.set(paramBinding.name(), paramTV);
+    variableTypesBindingsStack.set(paramBinding.name(), argTypes[p]);
+    argIt++;
+  }
+
+  // fnObj is last arg
+  llvm::Value *fnObjArg = &*argIt;
+
+  // Bind closed-overs (same as FnNode)
+  if (method->closedovers_size() > 0) {
+    TypedValue fnObjBoxed(ObjectTypeSet::dynamicType(), fnObjArg);
+    llvm::Value *fnRawPtr = valueEncoder.unboxPointer(fnObjBoxed).value;
+    llvm::Value *baseAddr = Builder.CreatePtrToInt(fnRawPtr, types.i64Ty);
+
+    static constexpr size_t kMethodsOffset = offsetof(ClojureFunction, methods);
+    static constexpr size_t kMethodSize = sizeof(FunctionMethod);
+    static constexpr size_t kClosedOversOffset = offsetof(FunctionMethod, closedOvers);
+
+    size_t methodByteOffset = kMethodsOffset + methodIndex * kMethodSize;
+
+    llvm::Value *closedOversPtrAddr = Builder.CreateAdd(
+        baseAddr,
+        llvm::ConstantInt::get(types.i64Ty, methodByteOffset + kClosedOversOffset));
+    llvm::Value *closedOversPtrPtr =
+        Builder.CreateIntToPtr(closedOversPtrAddr, types.ptrTy);
+    llvm::Value *closedOversPtr =
+        Builder.CreateLoad(types.ptrTy, closedOversPtrPtr, "closedOversPtr");
+
+    for (int j = 0; j < method->closedovers_size(); j++) {
+      std::string coName = method->closedovers(j).subnode().local().name();
+      llvm::Value *elemAddr = Builder.CreateGEP(
+          types.RT_valueTy, closedOversPtr,
+          llvm::ConstantInt::get(types.i64Ty, j), "co_addr_" + coName);
+      llvm::Value *coVal =
+          Builder.CreateLoad(types.RT_valueTy, elemAddr, "co_" + coName);
+      TypedValue coTV(ObjectTypeSet::dynamicType(), coVal);
+      variableBindingStack.set(coName, coTV);
+      variableTypesBindingsStack.set(coName, ObjectTypeSet::all());
+    }
+  }
+
+  // Register recur context
+  std::string loopId = method->loopid();
+  fnRecurContexts[loopId] = FnRecurContext{F};
+  recurContextTypes[loopId] = RecurContextType::Fn;
+
+  // Compile method body -- types will propagate through StaticCallNode etc.
+  TypedValue bodyResult = codegen(method->body(), ObjectTypeSet::all());
+
+  if (bodyResult.value != nullptr) {
+    llvm::Value *boxedResult = valueEncoder.box(bodyResult).value;
+    Builder.CreateRet(boxedResult);
+  }
+
+  LexicalBlocks.pop_back();
+  variableBindingStack.pop();
+  variableTypesBindingsStack.pop();
+  recurContextTypes.erase(loopId);
+  fnRecurContexts.erase(loopId);
+
+  memoryManagement.leaveSafetySection(jitEnginePtr);
+  terminateDeadBlocks(F, TheContext);
+  llvm::verifyFunction(*F);
   return fname;
 }
 
