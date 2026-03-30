@@ -54,24 +54,25 @@ TypedValue CodeGen::codegen(const Node &node, const ConstNode &subnode,
   case symbolType:
     retVal = dynamicConstructor.createSymbol(name.c_str());
     break;
-  // case classType:
-  //   {
-  //     Value *className = dynamicString(subnode.val().c_str());
-  //     dynamicRetain(className);
-  //     Value *statePtr =
-  //     Builder->CreateBitOrPointerCast(ConstantInt::get(Type::getInt64Ty(*TheContext),
-  //     APInt(64, (uint64_t) &*TheProgramme, false)), ptrT); retVal =
-  //     callRuntimeFun("getClassByName", ptrT, {ptrT, ptrT}, {statePtr,
-  //     className});
-  //   }
-  //   break;
-  // case deftypeType:
-  //   throwCodeGenerationException(
-  //                                string("Not possible to create const of
-  //                                type: ") +
-  //                                ConstNode_ConstType_Name(subnode.type()),
-  //                                node);
-  //   break;
+  case classType: {
+    std::string className = subnode.val();
+    if (className.rfind("class ", 0) == 0)
+      className = className.substr(6);
+    ScopedRef<::Class> cls(
+        compilerState.classRegistry.getCurrent(className.c_str()));
+    if (!cls) {
+      throwCodeGenerationException(
+          string("Unable to resolve class: ") + className + " in this context",
+          node);
+    }
+    uint64_t address = reinterpret_cast<uint64_t>(cls.get());
+    retVal = TypedValue(
+        ObjectTypeSet(classType),
+        ConstantExpr::getIntToPtr(ConstantInt::get(this->types.i64Ty, address),
+                                  this->types.ptrTy));
+    memoryManagement.dynamicRetain(retVal);
+    break;
+  }
   case keywordType:
     retVal = dynamicConstructor.createKeyword(
         (name[0] == ':' ? name.substr(1) : name).c_str());
@@ -205,8 +206,8 @@ ObjectTypeSet CodeGen::getType(const Node &node, const ConstNode &subnode,
   case ConstNode_ConstType_constTypeKeyword:
     return ObjectTypeSet(keywordType, false, new ConstantKeyword(subnode.val()))
         .restriction(typeRestrictions);
-  // case ConstNode_ConstType_constTypeClass:
-  //   return ObjectTypeSet(classType).restriction(typeRestrictions);
+  case ConstNode_ConstType_constTypeClass:
+    return ObjectTypeSet(classType).restriction(typeRestrictions);
   case ConstNode_ConstType_constTypeVector:
     return ObjectTypeSet(persistentVectorType).restriction(typeRestrictions);
   case ConstNode_ConstType_constTypeSeq:

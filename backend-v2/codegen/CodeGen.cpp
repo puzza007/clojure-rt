@@ -384,8 +384,8 @@ TypedValue CodeGen::codegen(const Node &node,
   case opStaticCall:
     return codegen(node, node.subnode().staticcall(), typeRestrictions);
 
-  // case opBinding:
-  //   return codegen(node, node.subnode().binding(), typeRestrictions);
+  case opBinding:
+    return codegen(node, node.subnode().binding(), typeRestrictions);
   case opCase:
     return codegen(node, node.subnode().case_(), typeRestrictions);
   case opCaseTest:
@@ -487,8 +487,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
   case opStaticCall:
     return getType(node, node.subnode().staticcall(), typeRestrictions);
 
-  // case opBinding:
-  //   return getType(node, node.subnode().binding(), typeRestrictions);
+  case opBinding:
+    return getType(node, node.subnode().binding(), typeRestrictions);
   case opCase:
     return getType(node, node.subnode().case_(), typeRestrictions);
   case opCaseTest:
