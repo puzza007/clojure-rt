@@ -2,6 +2,7 @@
 #include "runtime/Function.h"
 #include <algorithm>
 #include <cstddef>
+#include <mutex>
 
 using namespace std;
 using namespace llvm;
@@ -20,6 +21,19 @@ static constexpr size_t kClosedOversOffset =
 TypedValue CodeGen::codegen(const Node &node, const FnNode &subnode,
                             const ObjectTypeSet &typeRestrictions) {
   uint64_t funId = nextFnUniqueId++;
+
+  // Store a heap copy of the fn AST for lazy specialization.
+  // The original node is owned by the caller and may be freed.
+  static std::mutex astMutex;
+  static std::vector<std::unique_ptr<Node>> astStorage;
+  auto nodeCopy = std::make_unique<Node>(node);
+  const Node *rawPtr = nodeCopy.get();
+  {
+    std::lock_guard<std::mutex> lock(astMutex);
+    astStorage.push_back(std::move(nodeCopy));
+  }
+  compilerState.functionAstRegistry.registerObject(
+      std::to_string(funId).c_str(), rawPtr);
 
   // Sort methods: non-variadic desc by arity, then variadic
   struct MethodEntry {
@@ -184,6 +198,14 @@ TypedValue CodeGen::codegen(const Node &node, const FnNode &subnode,
     if (bodyResult.value != nullptr) {
       Value *boxedResult = valueEncoder.box(bodyResult).value;
       Builder.CreateRet(boxedResult);
+    }
+
+    // Cap any unterminated BBs (dead code from recur) before verification
+    for (auto &BB : *methodFn) {
+      if (!BB.getTerminator()) {
+        IRBuilder<> tmpBuilder(&BB);
+        tmpBuilder.CreateUnreachable();
+      }
     }
 
     LexicalBlocks.pop_back();

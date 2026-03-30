@@ -33,14 +33,12 @@ TypedValue CodeGen::codegen(const Node &node, const RecurNode &subnode,
 
     Builder.CreateBr(loopCtx.headerBB);
 
-    // Create unreachable BB so subsequent code in the parent (e.g. if/else
-    // merge) has a valid insertion point
+    // Create dead BB for subsequent code (terminated before module verification)
     Function *parentFn = Builder.GetInsertBlock()->getParent();
     BasicBlock *deadBB =
         BasicBlock::Create(Builder.getContext(), "post_recur", parentFn);
     Builder.SetInsertPoint(deadBB);
 
-    // Return null value to signal that this branch terminated
     return TypedValue(ObjectTypeSet::all(), nullptr);
 
   } else {
@@ -63,7 +61,7 @@ TypedValue CodeGen::codegen(const Node &node, const RecurNode &subnode,
     call->setTailCallKind(CallInst::TCK_Tail);
     Builder.CreateRet(call);
 
-    // Create unreachable BB for subsequent code
+    // Create dead BB (terminated before module verification)
     BasicBlock *deadBB =
         BasicBlock::Create(Builder.getContext(), "post_recur", currentFn);
     Builder.SetInsertPoint(deadBB);

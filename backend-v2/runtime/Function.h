@@ -11,6 +11,12 @@ extern "C" {
 
 #define INVOKATION_CACHE_SIZE 3
 
+struct InvokationCache {
+  uint64_t signature[3]; // 8 bits per arg type, 8 args per uint64
+  uint64_t packed;       // 1 bit per arg: 0=unboxed, 1=boxed
+  _Atomic(void *) fptr;  // Written last with release, read with acquire
+};
+
 typedef struct InvokationCache InvokationCache;
 
 struct FunctionMethod {
@@ -21,6 +27,7 @@ struct FunctionMethod {
   char *loopId;
   uword_t closedOversCount;
   RTValue *closedOvers;
+  InvokationCache invocations[INVOKATION_CACHE_SIZE];
 };
 
 typedef struct FunctionMethod FunctionMethod;

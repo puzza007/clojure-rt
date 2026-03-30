@@ -13,7 +13,47 @@ static constexpr size_t kFMBaselineImplOffset =
 static constexpr size_t kFMFixedArityOffset =
     offsetof(FunctionMethod, fixedArity);
 
-// Generate the function invoke path (exact match + variadic fallback)
+// Emit code to encode runtime arg types into the 3x i64 + packed signature
+// that specialiseDynamicFn expects
+static void emitArgSignature(InvokeManager &invokeManager, LLVMTypes &types,
+                             IRBuilder<> &Builder, vector<Value *> &boxedArgs,
+                             int N, Value *&sig0, Value *&sig1, Value *&sig2,
+                             Value *&packed) {
+  FunctionType *getTypeFT =
+      FunctionType::get(types.i32Ty, {types.RT_valueTy}, false);
+
+  sig0 = ConstantInt::get(types.i64Ty, 0);
+  sig1 = ConstantInt::get(types.i64Ty, 0);
+  sig2 = ConstantInt::get(types.i64Ty, 0);
+  packed = ConstantInt::get(types.i64Ty, 0);
+
+  Value *sigs[3] = {sig0, sig1, sig2};
+
+  for (int i = 0; i < N && i < 24; i++) {
+    // Get runtime type of each arg
+    Value *argType = invokeManager.invokeRaw("getType", getTypeFT,
+                                              {boxedArgs[i]});
+    Value *argTypeWide = Builder.CreateZExt(argType, types.i64Ty);
+
+    int group = i / 8;
+    int index = i % 8;
+
+    // Pack type into the right signature word
+    Value *shifted = Builder.CreateShl(argTypeWide,
+        ConstantInt::get(types.i64Ty, 8 * index));
+    sigs[group] = Builder.CreateOr(sigs[group], shifted);
+
+    // All args are boxed in our calling convention (packed bit = 1)
+    Value *packedBit = ConstantInt::get(types.i64Ty, 1ULL << i);
+    packed = Builder.CreateOr(packed, packedBit);
+  }
+
+  sig0 = sigs[0];
+  sig1 = sigs[1];
+  sig2 = sigs[2];
+}
+
+// Emit function invoke via specialiseDynamicFn (type-specialized dispatch)
 static Value *emitFunctionInvoke(CodeGen &cg, InvokeManager &invokeManager,
                                  ValueEncoder &valueEncoder, LLVMTypes &types,
                                  IRBuilder<> &Builder, LLVMContext &TheContext,
@@ -24,129 +64,131 @@ static Value *emitFunctionInvoke(CodeGen &cg, InvokeManager &invokeManager,
   FunctionType *ptrI64FT =
       FunctionType::get(types.ptrTy, {types.ptrTy, types.i64Ty}, false);
 
-  // Try non-variadic exact match
+  // Encode arg types into signature for specialiseDynamicFn
+  Value *sig0, *sig1, *sig2, *packed;
+  emitArgSignature(invokeManager, types, Builder, boxedArgs, N,
+                   sig0, sig1, sig2, packed);
+
+  // Call specialiseDynamicFn to get a (possibly specialized) function pointer
+  Value *jitPtr = ConstantInt::get(types.i64Ty, (uintptr_t)cg.jitEnginePtr);
+  jitPtr = Builder.CreateIntToPtr(jitPtr, types.ptrTy);
+
+  FunctionType *specFT = FunctionType::get(
+      types.ptrTy,
+      {types.ptrTy, types.ptrTy, types.i64Ty,
+       types.i64Ty, types.i64Ty, types.i64Ty, types.i64Ty},
+      false);
+
+  Value *fptr = invokeManager.invokeRaw(
+      "specialiseDynamicFn", specFT,
+      {jitPtr, fnRawPtr, ConstantInt::get(types.i64Ty, N),
+       sig0, sig1, sig2, packed});
+
+  // Check if specialiseDynamicFn returned NULL (no specialized version available)
+  Value *isNull = Builder.CreateICmpEQ(fptr, nullPtr, "spec_null");
+  BasicBlock *specBB = BasicBlock::Create(TheContext, "spec_call", parentFn);
+  BasicBlock *baselineBB = BasicBlock::Create(TheContext, "baseline_call", parentFn);
+  BasicBlock *invokeMergeBB = BasicBlock::Create(TheContext, "invoke_fn_merge", parentFn);
+  Builder.CreateCondBr(isNull, baselineBB, specBB);
+
+  // Specialized call path
+  Builder.SetInsertPoint(specBB);
+  vector<Value *> callArgs(boxedArgs.begin(), boxedArgs.end());
+  callArgs.push_back(fnRTValue);
+  vector<Type *> callParamTypes(N + 1, types.RT_valueTy);
+  FunctionType *callFT =
+      FunctionType::get(types.RT_valueTy, callParamTypes, false);
+  Value *specResult = invokeManager.invokeRaw(fptr, callFT, callArgs);
+  BasicBlock *specExitBB = Builder.GetInsertBlock();
+  Builder.CreateBr(invokeMergeBB);
+
+  // Baseline fallback: use Function_getBaselineImpl or variadic
+  Builder.SetInsertPoint(baselineBB);
   Value *implPtr = invokeManager.invokeRaw(
       "Function_getBaselineImpl", ptrI64FT,
       {fnRawPtr, ConstantInt::get(types.i64Ty, N)});
+  Value *baseIsNull = Builder.CreateICmpEQ(implPtr, nullPtr, "base_null");
+  BasicBlock *directBB = BasicBlock::Create(TheContext, "base_direct", parentFn);
+  BasicBlock *varBB = BasicBlock::Create(TheContext, "base_variadic", parentFn);
+  Builder.CreateCondBr(baseIsNull, varBB, directBB);
 
-  Value *isNull =
-      Builder.CreateICmpEQ(implPtr, nullPtr, "impl_null");
-
-  BasicBlock *directCallBB =
-      BasicBlock::Create(TheContext, "fn_direct", parentFn);
-  BasicBlock *tryVariadicBB =
-      BasicBlock::Create(TheContext, "fn_try_variadic", parentFn);
-  BasicBlock *fnMergeBB =
-      BasicBlock::Create(TheContext, "fn_merge", parentFn);
-
-  Builder.CreateCondBr(isNull, tryVariadicBB, directCallBB);
-
-  // Direct call
-  Builder.SetInsertPoint(directCallBB);
-  vector<Value *> directCallArgs(boxedArgs.begin(), boxedArgs.end());
-  directCallArgs.push_back(fnRTValue);
-  vector<Type *> directParamTypes(N + 1, types.RT_valueTy);
-  FunctionType *directCallFT =
-      FunctionType::get(types.RT_valueTy, directParamTypes, false);
-  Value *directResult =
-      invokeManager.invokeRaw(implPtr, directCallFT, directCallArgs);
+  // Direct baseline call
+  Builder.SetInsertPoint(directBB);
+  vector<Value *> baseCallArgs(boxedArgs.begin(), boxedArgs.end());
+  baseCallArgs.push_back(fnRTValue);
+  Value *baseResult = invokeManager.invokeRaw(implPtr, callFT, baseCallArgs);
   BasicBlock *directExitBB = Builder.GetInsertBlock();
-  Builder.CreateBr(fnMergeBB);
+  Builder.CreateBr(invokeMergeBB);
 
   // Variadic fallback
-  Builder.SetInsertPoint(tryVariadicBB);
-
+  Builder.SetInsertPoint(varBB);
   Value *methodPtr = invokeManager.invokeRaw(
       "Function_findVariadicMethod", ptrI64FT,
       {fnRawPtr, ConstantInt::get(types.i64Ty, N)});
+  Value *methodIsNull = Builder.CreateICmpEQ(methodPtr, nullPtr);
+  BasicBlock *arityErrBB = BasicBlock::Create(TheContext, "arity_err", parentFn);
+  BasicBlock *varDispBB = BasicBlock::Create(TheContext, "var_disp", parentFn);
+  Builder.CreateCondBr(methodIsNull, arityErrBB, varDispBB);
 
-  Value *methodIsNull =
-      Builder.CreateICmpEQ(methodPtr, nullPtr, "method_null");
-  BasicBlock *arityErrorBB =
-      BasicBlock::Create(TheContext, "fn_arity_error", parentFn);
-  BasicBlock *varDispatchBB =
-      BasicBlock::Create(TheContext, "fn_var_dispatch", parentFn);
-  Builder.CreateCondBr(methodIsNull, arityErrorBB, varDispatchBB);
-
-  Builder.SetInsertPoint(arityErrorBB);
-  FunctionType *arityExFT =
-      FunctionType::get(types.voidTy, {types.i32Ty, types.i32Ty}, false);
-  invokeManager.invokeRaw("throwArityException_C", arityExFT,
-      {ConstantInt::get(types.i32Ty, -1),
-       ConstantInt::get(types.i32Ty, N)});
+  Builder.SetInsertPoint(arityErrBB);
+  FunctionType *arityFT = FunctionType::get(types.voidTy, {types.i32Ty, types.i32Ty}, false);
+  invokeManager.invokeRaw("throwArityException_C", arityFT,
+      {ConstantInt::get(types.i32Ty, -1), ConstantInt::get(types.i32Ty, N)});
   Builder.CreateUnreachable();
 
-  Builder.SetInsertPoint(varDispatchBB);
-
+  Builder.SetInsertPoint(varDispBB);
   Value *methodAsInt = Builder.CreatePtrToInt(methodPtr, types.i64Ty);
   Value *implFieldAddr = Builder.CreateAdd(methodAsInt,
       ConstantInt::get(types.i64Ty, kFMBaselineImplOffset));
   Value *vImplPtr = Builder.CreateLoad(types.ptrTy,
-      Builder.CreateIntToPtr(implFieldAddr, types.ptrTy), "var_impl");
+      Builder.CreateIntToPtr(implFieldAddr, types.ptrTy));
   Value *arityFieldAddr = Builder.CreateAdd(methodAsInt,
       ConstantInt::get(types.i64Ty, kFMFixedArityOffset));
   Value *fixedArity = Builder.CreateLoad(types.i64Ty,
-      Builder.CreateIntToPtr(arityFieldAddr, types.ptrTy), "fixed_arity");
+      Builder.CreateIntToPtr(arityFieldAddr, types.ptrTy));
 
-  Value *argsArray = Builder.CreateAlloca(
-      types.RT_valueTy, ConstantInt::get(types.i32Ty, N), "args_array");
+  Value *argsArray = Builder.CreateAlloca(types.RT_valueTy, ConstantInt::get(types.i32Ty, N));
   for (int i = 0; i < N; i++) {
-    Value *elemPtr = Builder.CreateGEP(types.RT_valueTy, argsArray,
-        ConstantInt::get(types.i32Ty, i));
-    Builder.CreateStore(boxedArgs[i], elemPtr);
+    Builder.CreateStore(boxedArgs[i],
+        Builder.CreateGEP(types.RT_valueTy, argsArray, ConstantInt::get(types.i32Ty, i)));
   }
-
   FunctionType *packFT = FunctionType::get(
       types.RT_valueTy, {types.ptrTy, types.i64Ty, types.i64Ty}, false);
-  Value *vecRTValue = invokeManager.invokeRaw(
-      "Function_packRestArgs", packFT,
+  Value *vecRTValue = invokeManager.invokeRaw("Function_packRestArgs", packFT,
       {argsArray, fixedArity, ConstantInt::get(types.i64Ty, N)});
 
-  BasicBlock *varMergeBB =
-      BasicBlock::Create(TheContext, "var_merge", parentFn);
-  BasicBlock *unreachableBB =
-      BasicBlock::Create(TheContext, "var_unreachable", parentFn);
-  SwitchInst *sw = Builder.CreateSwitch(fixedArity, unreachableBB, N + 1);
-
+  BasicBlock *varMergeBB = BasicBlock::Create(TheContext, "var_merge", parentFn);
+  BasicBlock *unreachBB = BasicBlock::Create(TheContext, "var_unreach", parentFn);
+  SwitchInst *sw = Builder.CreateSwitch(fixedArity, unreachBB, N + 1);
   vector<pair<BasicBlock *, Value *>> varCases;
   for (int fa = 0; fa <= N; fa++) {
-    BasicBlock *caseBB = BasicBlock::Create(
-        TheContext, "var_arity_" + to_string(fa), parentFn);
+    BasicBlock *caseBB = BasicBlock::Create(TheContext, "var_" + to_string(fa), parentFn);
     sw->addCase(cast<ConstantInt>(ConstantInt::get(types.i64Ty, fa)), caseBB);
     Builder.SetInsertPoint(caseBB);
-
     vector<Value *> varCallArgs;
-    for (int j = 0; j < fa; j++)
-      varCallArgs.push_back(boxedArgs[j]);
+    for (int j = 0; j < fa; j++) varCallArgs.push_back(boxedArgs[j]);
     varCallArgs.push_back(vecRTValue);
     varCallArgs.push_back(fnRTValue);
-
-    vector<Type *> varParamTypes(fa + 2, types.RT_valueTy);
-    FunctionType *varCallFT =
-        FunctionType::get(types.RT_valueTy, varParamTypes, false);
-    Value *varResult =
-        invokeManager.invokeRaw(vImplPtr, varCallFT, varCallArgs);
-    varCases.push_back({Builder.GetInsertBlock(), varResult});
+    vector<Type *> varPT(fa + 2, types.RT_valueTy);
+    Value *varRes = invokeManager.invokeRaw(vImplPtr,
+        FunctionType::get(types.RT_valueTy, varPT, false), varCallArgs);
+    varCases.push_back({Builder.GetInsertBlock(), varRes});
     Builder.CreateBr(varMergeBB);
   }
-
-  Builder.SetInsertPoint(unreachableBB);
+  Builder.SetInsertPoint(unreachBB);
   Builder.CreateUnreachable();
-
   Builder.SetInsertPoint(varMergeBB);
-  PHINode *varPhi =
-      Builder.CreatePHI(types.RT_valueTy, varCases.size(), "var_result");
-  for (auto &[bb, val] : varCases)
-    varPhi->addIncoming(val, bb);
-  Builder.CreateBr(fnMergeBB);
+  PHINode *varPhi = Builder.CreatePHI(types.RT_valueTy, varCases.size());
+  for (auto &[bb, val] : varCases) varPhi->addIncoming(val, bb);
+  Builder.CreateBr(invokeMergeBB);
 
-  // Merge function results
-  Builder.SetInsertPoint(fnMergeBB);
-  PHINode *fnPhi =
-      Builder.CreatePHI(types.RT_valueTy, 2, "fn_result");
-  fnPhi->addIncoming(directResult, directExitBB);
-  fnPhi->addIncoming(varPhi, varMergeBB);
-  return fnPhi;
+  // Final merge
+  Builder.SetInsertPoint(invokeMergeBB);
+  PHINode *phi = Builder.CreatePHI(types.RT_valueTy, 3, "fn_result");
+  phi->addIncoming(specResult, specExitBB);
+  phi->addIncoming(baseResult, directExitBB);
+  phi->addIncoming(varPhi, varMergeBB);
+  return phi;
 }
 
 TypedValue CodeGen::codegen(const Node &node, const InvokeNode &subnode,
@@ -163,7 +205,7 @@ TypedValue CodeGen::codegen(const Node &node, const InvokeNode &subnode,
   Value *fnRTValue = valueEncoder.box(fnExpr).value;
   Function *parentFn = Builder.GetInsertBlock()->getParent();
 
-  // If fn type is known at compile time, dispatch directly
+  // Static dispatch for known types
   if (fnExpr.type.isDetermined()) {
     objectType fnType = fnExpr.type.determinedType();
     if (fnType == functionType) {
@@ -175,20 +217,15 @@ TypedValue CodeGen::codegen(const Node &node, const InvokeNode &subnode,
                              fnRTValue, boxedArgs, N));
     }
     if (fnType == persistentVectorType && N == 1) {
-      // (vector index) → PersistentVector_nth
       Value *vecPtr = valueEncoder.unboxPointer(
           TypedValue(ObjectTypeSet::dynamicType(), fnRTValue)).value;
-      Value *idx = valueEncoder.unboxInt32(
-          TypedValue(ObjectTypeSet::dynamicType(), boxedArgs[0])).value;
-      Value *idxW = Builder.CreateZExt(idx, types.i64Ty, "nth_idx");
       FunctionType *nthFT = FunctionType::get(
-          types.RT_valueTy, {types.ptrTy, types.i64Ty}, false);
-      Value *result = invokeManager.invokeRaw(
-          "PersistentVector_nth", nthFT, {vecPtr, idxW});
-      return TypedValue(ObjectTypeSet::dynamicType(), result);
+          types.RT_valueTy, {types.ptrTy, types.RT_valueTy}, false);
+      return TypedValue(ObjectTypeSet::dynamicType(),
+          invokeManager.invokeRaw("PersistentVector_dynamic_nth", nthFT,
+                                  {vecPtr, boxedArgs[0]}));
     }
     if (fnType == persistentArrayMapType && N == 1) {
-      // (map key) → PersistentArrayMap_dynamic_get
       auto retType = ObjectTypeSet::dynamicType();
       return invokeManager.invokeRuntime(
           "PersistentArrayMap_dynamic_get", &retType,
@@ -197,7 +234,6 @@ TypedValue CodeGen::codegen(const Node &node, const InvokeNode &subnode,
            TypedValue(ObjectTypeSet::dynamicType(), boxedArgs[0])});
     }
     if (fnType == keywordType && N == 1) {
-      // (:keyword map) → PersistentArrayMap_dynamic_get(map, keyword)
       auto retType = ObjectTypeSet::dynamicType();
       return invokeManager.invokeRuntime(
           "PersistentArrayMap_dynamic_get", &retType,
@@ -225,9 +261,8 @@ TypedValue CodeGen::codegen(const Node &node, const InvokeNode &subnode,
   BasicBlock *mergeBB =
       BasicBlock::Create(TheContext, "invoke_merge", parentFn);
 
-  SwitchInst *sw = Builder.CreateSwitch(runtimeType, errorBB,
-                                        N == 1 ? 4 : 1);
   auto ci = [&](int v) { return cast<ConstantInt>(ConstantInt::get(types.i32Ty, v)); };
+  SwitchInst *sw = Builder.CreateSwitch(runtimeType, errorBB, N == 1 ? 4 : 1);
   sw->addCase(ci(functionType), fnBB);
   if (N == 1) {
     sw->addCase(ci(persistentVectorType), vecBB);
@@ -248,53 +283,40 @@ TypedValue CodeGen::codegen(const Node &node, const InvokeNode &subnode,
   Builder.CreateBr(mergeBB);
 
   if (N == 1) {
-    // Vector path: (vec idx)
     Builder.SetInsertPoint(vecBB);
     Value *vecPtr2 = valueEncoder.unboxPointer(
         TypedValue(ObjectTypeSet::dynamicType(), fnRTValue)).value;
-    Value *idx2 = valueEncoder.unboxInt32(
-        TypedValue(ObjectTypeSet::dynamicType(), boxedArgs[0])).value;
-    Value *idxW2 = Builder.CreateZExt(idx2, types.i64Ty);
     FunctionType *nthFT = FunctionType::get(
-        types.RT_valueTy, {types.ptrTy, types.i64Ty}, false);
+        types.RT_valueTy, {types.ptrTy, types.RT_valueTy}, false);
     Value *vecResult = invokeManager.invokeRaw(
-        "PersistentVector_nth", nthFT, {vecPtr2, idxW2});
+        "PersistentVector_dynamic_nth", nthFT, {vecPtr2, boxedArgs[0]});
     results.push_back({Builder.GetInsertBlock(), vecResult});
     Builder.CreateBr(mergeBB);
 
-    // Map path: (map key)
     Builder.SetInsertPoint(mapBB);
     FunctionType *mapGetFT = FunctionType::get(
         types.RT_valueTy, {types.RT_valueTy, types.RT_valueTy}, false);
     Value *mapResult = invokeManager.invokeRaw(
-        "PersistentArrayMap_dynamic_get", mapGetFT,
-        {fnRTValue, boxedArgs[0]});
+        "PersistentArrayMap_dynamic_get", mapGetFT, {fnRTValue, boxedArgs[0]});
     results.push_back({Builder.GetInsertBlock(), mapResult});
     Builder.CreateBr(mergeBB);
 
-    // Keyword path: (:kw map)
     Builder.SetInsertPoint(kwBB);
     Value *kwResult = invokeManager.invokeRaw(
-        "PersistentArrayMap_dynamic_get", mapGetFT,
-        {boxedArgs[0], fnRTValue});
+        "PersistentArrayMap_dynamic_get", mapGetFT, {boxedArgs[0], fnRTValue});
     results.push_back({Builder.GetInsertBlock(), kwResult});
     Builder.CreateBr(mergeBB);
   }
 
-  // Error path
   Builder.SetInsertPoint(errorBB);
   FunctionType *throwFT =
       FunctionType::get(types.voidTy, {types.ptrTy}, false);
-  Value *errMsg = Builder.CreateGlobalStringPtr(
-      "Invoke on non-callable type");
   invokeManager.invokeRaw("throwIllegalArgumentException_C", throwFT,
-                          {errMsg});
+      {Builder.CreateGlobalStringPtr("Invoke on non-callable type")});
   Builder.CreateUnreachable();
 
-  // Merge
   Builder.SetInsertPoint(mergeBB);
-  PHINode *phi = Builder.CreatePHI(types.RT_valueTy, results.size(),
-                                   "invoke_result");
+  PHINode *phi = Builder.CreatePHI(types.RT_valueTy, results.size(), "invoke_result");
   for (auto &[bb, val] : results)
     phi->addIncoming(val, bb);
 

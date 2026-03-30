@@ -2,6 +2,9 @@
 #include "../RuntimeHeaders.h"
 #include "../runtime/JITSafety.h"
 
+extern "C" void *specialiseDynamicFn(void *, void *, uint64_t,
+                                     uint64_t, uint64_t, uint64_t);
+
 #include "../runtime/Numbers.h"
 #include "../tools/EdnParser.h"
 #include "bridge/Exceptions.h"
@@ -571,6 +574,8 @@ void JITEngine::registerRuntimeSymbols() {
   // The bridge:
   runtimeSymbols.insert(
       absoluteSymbol("InstanceCallSlowPath", (void *)InstanceCallSlowPath));
+  runtimeSymbols.insert(
+      absoluteSymbol("specialiseDynamicFn", (void *)specialiseDynamicFn));
 
   runtimeSymbols.insert(absoluteSymbol("JITEngine_slowPath_enter",
                                        (void *)JITEngine_slowPath_enter));
