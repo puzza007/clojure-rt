@@ -162,6 +162,28 @@
                                                 (. ~(first arglist) (~method-name ~@(rest arglist))))))))))
                           form)
 
+                   ;; 0b. Pre-eval defrecord and rewrite to deftype + factory fns.
+                   ;; defrecord macroexpands to JVM-specific code (gen-class, dozens
+                   ;; of interface impls) that our backend can't handle. We eval on
+                   ;; the JVM so the class exists for the analyzer, then rewrite to
+                   ;; a simple deftype with only the user-provided protocol impls.
+                   form (if (and (seq? form) (= 'defrecord (first form)))
+                          (let [;; Skip optional docstring between name and fields
+                                after-name (drop 2 form)
+                                fields (first (filter vector? after-name))
+                                body (rest (drop-while #(not (vector? %)) after-name))
+                                record-name (second form)
+                                m-sym (gensym "m")]
+                            (eval form)
+                            `(do (deftype ~record-name ~fields ~@body)
+                                 (defn ~(symbol (str "->" record-name))
+                                   ~fields
+                                   (new ~record-name ~@fields))
+                                 (defn ~(symbol (str "map->" record-name))
+                                   [~m-sym]
+                                   (new ~record-name ~@(map (fn [f] `(~(keyword f) ~m-sym)) fields)))))
+                          form)
+
                    ;; 1. Analyze the form with the accumulated environment
                    ast (a/analyze form current-env {:passes-opts passes-opts})]
 

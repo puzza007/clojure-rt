@@ -15,12 +15,13 @@ namespace rt {
 TypedValue InvokeManager::generateInstanceCall(
     const std::string &methodName, TypedValue instance,
     const std::vector<TypedValue> &args, CleanupChainGuard *guard,
-    const clojure::rt::protobuf::bytecode::Node *node) {
+    const clojure::rt::protobuf::bytecode::Node *node,
+    const std::string &deftypeClassName) {
   if (!instance.type.isDetermined()) {
     return generateDynamicInstanceCall(methodName, instance, args, guard, node);
   } else {
     return generateDeterminedInstanceCall(methodName, instance, args, guard,
-                                          node);
+                                          node, deftypeClassName);
   }
 }
 
@@ -182,11 +183,21 @@ TypedValue InvokeManager::generateDynamicInstanceCall(
 TypedValue InvokeManager::generateDeterminedInstanceCall(
     const std::string &methodName, TypedValue instance,
     const std::vector<TypedValue> &args, CleanupChainGuard *guard,
-    const clojure::rt::protobuf::bytecode::Node *node) {
+    const clojure::rt::protobuf::bytecode::Node *node,
+    const std::string &deftypeClassName) {
   auto objType = instance.type.determinedType();
 
-  ::Class *targetClass =
-      this->compilerState.classRegistry.getCurrent((int32_t)objType);
+  ::Class *targetClass = nullptr;
+  if (objType == deftypeType && !deftypeClassName.empty()) {
+    // For deftype bridges, look up the specific class by name. This avoids
+    // using the shared deftypeType index slot which is overwritten by each
+    // deftype and would not be safe under concurrent compilation.
+    targetClass =
+        this->compilerState.classRegistry.getCurrent(deftypeClassName.c_str());
+  } else {
+    targetClass =
+        this->compilerState.classRegistry.getCurrent((int32_t)objType);
+  }
 
   if (objType == classType && instance.type.getConstant()) {
     if (auto *cc = dynamic_cast<ConstantClass *>(instance.type.getConstant())) {
