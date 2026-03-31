@@ -27,6 +27,16 @@ CodeGenResult CodeGen::release() && {
   return {std::move(TSContext), std::move(TheModule), std::move(constants), std::move(formMap)};
 }
 
+// Terminate any BBs that don't have terminators (dead code from recur etc.)
+static void terminateDeadBlocks(llvm::Function *F, llvm::LLVMContext &ctx) {
+  for (auto &BB : *F) {
+    if (!BB.getTerminator()) {
+      llvm::IRBuilder<> tmpBuilder(&BB);
+      tmpBuilder.CreateUnreachable();
+    }
+  }
+}
+
 std::string CodeGen::codegenTopLevel(const Node &node) {
   CLJ_ASSERT(TSContext != nullptr, "Codegen was moved");
   uword_t i = compilerState.functionAstRegistry.registerObject(&node);
@@ -83,18 +93,9 @@ std::string CodeGen::codegenTopLevel(const Node &node) {
   Builder.CreateRet(valueEncoder.box(result).value);
 
   LexicalBlocks.pop_back();
+  terminateDeadBlocks(F, TheContext);
   verifyFunction(*F);
   return fname;
-}
-
-// Terminate any BBs that don't have terminators (dead code from recur etc.)
-static void terminateDeadBlocks(llvm::Function *F, llvm::LLVMContext &ctx) {
-  for (auto &BB : *F) {
-    if (!BB.getTerminator()) {
-      llvm::IRBuilder<> tmpBuilder(&BB);
-      tmpBuilder.CreateUnreachable();
-    }
-  }
 }
 
 std::string CodeGen::compileSpecializedFnMethod(
