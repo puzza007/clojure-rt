@@ -439,16 +439,16 @@ TypedValue CodeGen::codegen(const Node &node,
     return codegen(node, node.subnode().new_(), typeRestrictions);
   // case opPrimInvoke:
   //   return codegen(node, node.subnode().priminvoke(), typeRestrictions);
-  // case opProtocolInvoke:
-  //   return codegen(node, node.subnode().protocolinvoke(), typeRestrictions);
+  case opProtocolInvoke:
+    return codegen(node, node.subnode().protocolinvoke(), typeRestrictions);
   case opRecur:
     return codegen(node, node.subnode().recur(), typeRestrictions);
   // case opReify:
   //   return codegen(node, node.subnode().reify(), typeRestrictions);
   // case opSet:
   //   return codegen(node, node.subnode().set(), typeRestrictions);
-  // case opMutateSet:
-  //   return codegen(node, node.subnode().mutateset(), typeRestrictions);
+  case opMutateSet:
+    return codegen(node, node.subnode().mutateset(), typeRestrictions);
   case opStaticField:
     return codegen(node, node.subnode().staticfield(), typeRestrictions);
   case opTheVar:
@@ -541,16 +541,16 @@ ObjectTypeSet CodeGen::getType(const Node &node,
     return getType(node, node.subnode().new_(), typeRestrictions);
   // case opPrimInvoke:
   //   return getType(node, node.subnode().priminvoke(), typeRestrictions);
-  // case opProtocolInvoke:
-  //   return getType(node, node.subnode().protocolinvoke(), typeRestrictions);
+  case opProtocolInvoke:
+    return getType(node, node.subnode().protocolinvoke(), typeRestrictions);
   case opRecur:
     return getType(node, node.subnode().recur(), typeRestrictions);
   // case opReify:
   //   return getType(node, node.subnode().reify(), typeRestrictions);
   // case opSet:
   //   return getType(node, node.subnode().set(), typeRestrictions);
-  // case opMutateSet:
-  //   return getType(node, node.subnode().mutateset(), typeRestrictions);
+  case opMutateSet:
+    return getType(node, node.subnode().mutateset(), typeRestrictions);
   case opStaticField:
     return getType(node, node.subnode().staticfield(), typeRestrictions);
   case opTheVar:

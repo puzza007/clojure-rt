@@ -2,6 +2,7 @@
 #include "Hash.h"
 #include "Object.h"
 #include "Symbol.h"
+#include <assert.h>
 #include <stdarg.h>
 
 Deftype *Deftype_create(Class *_class, uword_t fieldCount, ...) {
@@ -57,6 +58,17 @@ RTValue Deftype_getFieldByName(Deftype *self, const char *fieldName) {
   RTValue val = self->values[idx];
   retain(val);
   return val;
+}
+
+// Non-consuming: does not release self or value. Retains the new value.
+void Deftype_setFieldByName(Deftype *self, const char *fieldName, RTValue value) {
+  RTValue sym = Symbol_create(String_createDynamicStr(fieldName));
+  Ptr_retain(self->_class);
+  int32_t idx = Class_fieldIndex(self->_class, sym);
+  assert(idx >= 0 && "set! on unknown field");
+  release(self->values[idx]); // release old value
+  retain(value);
+  self->values[idx] = value;
 }
 
 RTValue Deftype_getIndexedField(Deftype *self, uword_t index) {

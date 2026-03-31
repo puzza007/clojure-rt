@@ -63,3 +63,4 @@ frontend/.calva
 .vscode
 backend/.vscode
 build
+.claude/

@@ -41,17 +41,13 @@
              [warn-on-reflection :refer [warn-on-reflection]]
              [emit-form :refer [emit-form]]]))
 
-;; Skip JVM class resolution for :new nodes -- user-defined deftypes don't
-;; exist on the JVM classpath. validate-call and validate-interfaces are
-;; already no-op'd below.
-;; Skip JVM class resolution for user-defined types that don't exist on the JVM
+;; Skip JVM class resolution for user-defined types that don't exist on the JVM classpath
 (defmethod -validate :new [ast] ast)
 (defmethod -validate :maybe-class [ast] ast)
 
 (def rt-passes
   "Set of passes that will be run on the AST by #'run-passes"
-  #{#'warn-on-reflection
-    #'warn-earmuff
+  #{#'warn-earmuff
 
     #'uniquify-locals
 
@@ -76,6 +72,7 @@
     #'passes/fresh-vars
     #'passes/memory-management-pass
     #'passes/rewrite-loops
+    #'passes/desugar-protocol-invoke
     })
 
 (def run-passes
@@ -135,9 +132,39 @@
                (when trivial-tree? (print-readable-tree ret-val 1))
                (when simple-tree? (clojure.pprint/pprint ret-val))
                ret-val)
-             (let [;; 1. Analyze the form with the accumulated environment
+             (let [;; 0. Pre-eval defprotocol and rewrite to instance-call dispatchers.
+                   ;; defprotocol macroexpands to JVM-specific code (gen-interface,
+                   ;; MethodImplCache, etc.) our backend can't handle. Instead, eval
+                   ;; it on the JVM (so the interface exists for the analyzer) then
+                   ;; rewrite to simple defn wrappers that dispatch via instance calls.
+                   form (if (and (seq? form) (= 'defprotocol (first form)))
+                          (let [protocol-name (second form)
+                                sigs (filter seq? (drop 2 form))
+                                ;; Group arglists by method name for multi-arity support
+                                methods (reduce (fn [acc sig]
+                                                  (let [method-name (first sig)
+                                                        arglists (filter vector? (rest sig))]
+                                                    (update acc method-name
+                                                            (fnil into []) arglists)))
+                                                {} sigs)]
+                            (eval form)
+                            `(do ~@(for [[method-name arglists] methods
+                                         :when (seq arglists)]
+                                     (if (= 1 (count arglists))
+                                       ;; Single arity: (defn name [args] body)
+                                       (let [arglist (first arglists)]
+                                         `(defn ~method-name ~arglist
+                                            (. ~(first arglist) (~method-name ~@(rest arglist)))))
+                                       ;; Multi arity: (defn name ([args1] body1) ([args2] body2))
+                                       `(defn ~method-name
+                                          ~@(for [arglist arglists]
+                                              `(~arglist
+                                                (. ~(first arglist) (~method-name ~@(rest arglist))))))))))
+                          form)
+
+                   ;; 1. Analyze the form with the accumulated environment
                    ast (a/analyze form current-env {:passes-opts passes-opts})]
-               
+
                ;; 2. Selective Eval for Macros
                ;; If the AST represents a macro definition, we MUST eval it.
                ;; Without this, the next form cannot be macro-expanded.

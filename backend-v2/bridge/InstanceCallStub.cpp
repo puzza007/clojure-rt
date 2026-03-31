@@ -1,5 +1,6 @@
 #include "InstanceCallStub.h"
 #include "../jit/JITEngine.h"
+#include "../runtime/Deftype.h"
 #include "../runtime/Object.h"
 #include "Exceptions.h"
 #include <iostream>
@@ -53,6 +54,17 @@ InstanceCallSlowPath(void *slot, const char *methodName, int32_t argCount,
   RTValue instance = args[0];
   objectType instanceType = getType(instance);
 
+  // For deftype instances, use the Class pointer as the IC key instead of
+  // the generic objectType, so different deftype classes get different bridges.
+  word_t icKey = (word_t)instanceType;
+  if (instanceType == deftypeType && RT_isPtr(instance)) {
+    Deftype *dt = (Deftype *)RT_unboxPtr(instance);
+    icKey = (word_t)(uintptr_t)dt->_class;
+    // Register the class by its type index so the bridge codegen can find it
+    engine->getCompilerState().classRegistry.registerObject(
+        dt->_class, (int32_t)deftypeType);
+  }
+
   // 2. Prepare the argument types for JIT specialization
   std::vector<ObjectTypeSet> argTypes;
   for (int i = 0; i < argCount; i++) {
@@ -95,11 +107,11 @@ InstanceCallSlowPath(void *slot, const char *methodName, int32_t argCount,
       __atomic_load((uint64_t *)ic, (uint64_t *)&currentIC, __ATOMIC_ACQUIRE);
     }
 
-    if (currentIC.key == (word_t)instanceType) {
+    if (currentIC.key == icKey) {
       return currentIC.value;
     }
 
-    InlineCache newCache = {(word_t)instanceType, bridgePtr};
+    InlineCache newCache = {icKey, bridgePtr};
     if constexpr (K_WORD_SIZE == 8) {
 #if defined(__clang__)
 #pragma clang diagnostic push

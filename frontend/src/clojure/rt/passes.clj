@@ -10,6 +10,20 @@
 
 (defn assoc-maybe [m k v] (if v (assoc m k v) m))
 
+(defn desugar-protocol-invoke
+  "Convert :protocol-invoke back to :invoke. Our frontend rewrites defprotocol
+   to create regular defn wrappers, so protocol invokes can be regular invokes."
+  {:pass-info {:walk :pre :depends #{} :after #{#'collect-closed-overs}}}
+  [ast]
+  (if (= :protocol-invoke (:op ast))
+    (-> ast
+        (assoc :op :invoke
+               :fn (:protocol-fn ast)
+               :args (into [(:target ast)] (:args ast))
+               :children [:fn :args])
+        (dissoc :protocol-fn :target))
+    ast))
+
 (defn remove-env
   {:pass-info {:walk :pre :depends #{}}}
   [ast]
