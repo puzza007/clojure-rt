@@ -81,8 +81,32 @@
                            (assoc converters 
                                   :subnode create-subnode
                                   :environment create-environment) node))))
+(defn- resolve-maybe-class
+  "Convert :maybe-class nodes to :const :class nodes so the protobuf encoder
+   can handle them. Uses targeted AST traversal via :children to avoid walking
+   into non-AST data structures (e.g. case dispatch maps with integer keys)."
+  [ast]
+  (if-not (map? ast)
+    ast
+    (let [ast (if (= :maybe-class (:op ast))
+                (-> ast
+                    (assoc :op :const
+                           :type :class
+                           :val (str (:class ast))
+                           :literal? true)
+                    (dissoc :class))
+                ast)]
+      (reduce (fn [node child-key]
+                (let [child (get node child-key)]
+                  (cond
+                    (map? child) (assoc node child-key (resolve-maybe-class child))
+                    (sequential? child) (assoc node child-key (mapv resolve-maybe-class child))
+                    :else node)))
+              ast
+              (:children ast)))))
+
 (defn encode-ast [programme]
   (let [types (-> "ast-types.edn" (read-file) (edn/read-string))]
-    (bc/new-Programme {:nodes (map #(encode-node types %) programme)})))
+    (bc/new-Programme {:nodes (map #(encode-node types (resolve-maybe-class %)) programme)})))
 
 

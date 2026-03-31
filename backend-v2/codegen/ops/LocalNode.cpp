@@ -12,13 +12,32 @@ TypedValue CodeGen::codegen(const Node &node, const LocalNode &subnode,
   case localTypeArg:
   case localTypeLet:
   case localTypeLoop:
-  case localTypeCatch: {
+  case localTypeCatch:
+  case localTypeThis: {
     auto name = subnode.name();
     auto *val = variableBindingStack.find(name);
     if (!val) {
       throwCodeGenerationException(string("Unknown variable: ") + name, node);
     }
     return *val;
+  }
+  case localTypeField: {
+    // Field access on 'this' - generate Deftype_getFieldByName call
+    auto *thisVal = variableBindingStack.find("this");
+    if (!thisVal) {
+      throwCodeGenerationException(
+          "Field access requires 'this' in scope", node);
+    }
+    Value *boxedThis = valueEncoder.box(*thisVal).value;
+    Value *thisPtr = valueEncoder.unboxPointer(
+        TypedValue(ObjectTypeSet::dynamicType(), boxedThis)).value;
+    string fieldName = stripUniquifySuffix(subnode.name());
+    Value *fieldNameStr = Builder.CreateGlobalStringPtr(fieldName, "field_name");
+    FunctionType *getFieldFT = FunctionType::get(
+        types.RT_valueTy, {types.ptrTy, types.ptrTy}, false);
+    Value *fieldVal = invokeManager.invokeRaw(
+        "Deftype_getFieldByName", getFieldFT, {thisPtr, fieldNameStr});
+    return TypedValue(ObjectTypeSet::dynamicType(), fieldVal);
   }
   default:
     throwCodeGenerationException(
@@ -34,7 +53,8 @@ ObjectTypeSet CodeGen::getType(const Node &node, const LocalNode &subnode,
   case localTypeArg:
   case localTypeLet:
   case localTypeLoop:
-  case localTypeCatch: {
+  case localTypeCatch:
+  case localTypeThis: {
     auto name = subnode.name();
     auto *type = variableTypesBindingsStack.find(name);
     if (!type) {
@@ -42,6 +62,8 @@ ObjectTypeSet CodeGen::getType(const Node &node, const LocalNode &subnode,
     }
     return *type;
   }
+  case localTypeField:
+    return ObjectTypeSet::dynamicType();
   default:
     throwCodeGenerationException(
         string("Compiler does not fully support the following local type yet: ") +

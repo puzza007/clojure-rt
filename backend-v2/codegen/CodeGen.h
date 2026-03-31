@@ -33,6 +33,13 @@ using namespace clojure::rt::protobuf::bytecode;
 
 namespace rt {
 
+// Strip the "__#N" suffix added by the frontend's uniquify-locals pass.
+inline std::string stripUniquifySuffix(const std::string &name) {
+  auto pos = name.find("__#");
+  return (pos != std::string::npos) ? name.substr(0, pos) : name;
+}
+
+
 struct CodeGenResult {
   std::unique_ptr<llvm::orc::ThreadSafeContext> context;
   std::unique_ptr<llvm::Module> module;
@@ -179,6 +186,10 @@ public:
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const BindingNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const ProtocolInvokeNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const MutateSetNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
 
   ObjectTypeSet getType(const Node &node,
                         const ObjectTypeSet &typeRestrictions);
@@ -251,6 +262,10 @@ public:
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const BindingNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const ProtocolInvokeNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const MutateSetNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
 
   Var *getOrCreateVar(std::string_view name);
   bool canThrow(const clojure::rt::protobuf::bytecode::Node &node);
@@ -266,6 +281,13 @@ public:
     return memoryManagement.hasPushedResources();
   }
   MemoryManagement &getMemoryManagement() { return memoryManagement; }
+  llvm::LLVMContext &getContext() { return TheContext; }
+  llvm::Module &getModule() { return *TheModule; }
+  llvm::IRBuilder<> &getBuilder() { return Builder; }
+  LLVMTypes &getLLVMTypes() { return types; }
+  ValueEncoder &getValueEncoder() { return valueEncoder; }
+  VariableBindings<TypedValue> &getVariableBindingStack() { return variableBindingStack; }
+  VariableBindings<ObjectTypeSet> &getVariableTypesBindingsStack() { return variableTypesBindingsStack; }
   DynamicConstructor &getDynamicConstructor() { return dynamicConstructor; }
 
 public:

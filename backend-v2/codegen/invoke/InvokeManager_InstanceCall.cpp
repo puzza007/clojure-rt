@@ -36,7 +36,6 @@ TypedValue InvokeManager::generateDynamicInstanceCall(
         "mode");
   }
 
-  cout << "Generating dynamic instance call for method: " << methodName << endl;
   // Allocate an Inline Cache slot as a global variable in the module
   auto *slotTy = StructType::get(TheContext, {types.wordTy, types.ptrTy});
 

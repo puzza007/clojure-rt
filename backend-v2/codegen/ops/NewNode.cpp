@@ -18,12 +18,17 @@ TypedValue CodeGen::codegen(const Node &node, const NewNode &subnode,
   if (className.rfind("class ", 0) == 0)
     className = className.substr(6);
 
-  // Look up class in registry
-  PtrWrapper<Class> cls(
-      compilerState.classRegistry.getCurrent(className.c_str()));
-  if (!cls) {
+  // Look up class in registry, trying both the given name and with namespace prefix
+  // (deftype macro uses "ns.ClassName" format)
+  Class *clsRaw = compilerState.classRegistry.getCurrent(className.c_str());
+  if (!clsRaw && node.has_env() && !node.env().ns().empty()) {
+    string qualifiedName = node.env().ns() + "." + className;
+    clsRaw = compilerState.classRegistry.getCurrent(qualifiedName.c_str());
+  }
+  if (!clsRaw) {
     throwCodeGenerationException("Class not found for new: " + className, node);
   }
+  PtrWrapper<Class> cls(clsRaw);
 
   auto *ext = static_cast<ClassDescription *>(cls->compilerExtension);
   if (!ext) {
