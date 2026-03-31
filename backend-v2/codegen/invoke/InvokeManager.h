@@ -53,7 +53,8 @@ private:
   TypedValue generateDeterminedInstanceCall(
       const std::string &methodName, TypedValue instance,
       const std::vector<TypedValue> &args, CleanupChainGuard *guard = nullptr,
-      const clojure::rt::protobuf::bytecode::Node *node = nullptr);
+      const clojure::rt::protobuf::bytecode::Node *node = nullptr,
+      const std::string &deftypeClassName = "");
 
   TypedValue generateDynamicInstanceCall(
       const std::string &methodName, TypedValue instance,
@@ -96,7 +97,8 @@ public:
   TypedValue generateInstanceCall(
       const std::string &methodName, TypedValue instance,
       const std::vector<TypedValue> &args, CleanupChainGuard *guard = nullptr,
-      const clojure::rt::protobuf::bytecode::Node *node = nullptr);
+      const clojure::rt::protobuf::bytecode::Node *node = nullptr,
+      const std::string &deftypeClassName = "");
 
   ObjectTypeSet predictInstanceCallType(const std::string &methodName,
                                         const ObjectTypeSet &instanceType,

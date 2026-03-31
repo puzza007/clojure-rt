@@ -264,7 +264,8 @@ std::string CodeGen::compileSpecializedFnMethod(
 
 std::string CodeGen::generateInstanceCallBridge(
     const std::string &methodName, const ObjectTypeSet &instanceType,
-    const std::vector<ObjectTypeSet> &argTypes, void *callSiteId) {
+    const std::vector<ObjectTypeSet> &argTypes, void *callSiteId,
+    const std::string &deftypeClassName) {
   CLJ_ASSERT(TSContext != nullptr, "Codegen was moved");
 
   // 1. Create a unique function name
@@ -334,9 +335,8 @@ std::string CodeGen::generateInstanceCallBridge(
   }
 
   // 5. Generate the specialized instance call
-  // This will emit direct calls or a dispatch tree based on the provided types.
-  TypedValue result =
-      invokeManager.generateInstanceCall(methodName, instanceTV, callArgs);
+  TypedValue result = invokeManager.generateInstanceCall(
+      methodName, instanceTV, callArgs, nullptr, nullptr, deftypeClassName);
 
   // 6. Ensure result is boxed and return
   memoryManagement.leaveSafetySection(jitEnginePtr);

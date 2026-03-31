@@ -2,8 +2,8 @@
 #include "../jit/JITEngine.h"
 #include "../runtime/Deftype.h"
 #include "../runtime/Object.h"
+#include "../runtime/String.h"
 #include "Exceptions.h"
-#include <iostream>
 #include <vector>
 
 using namespace rt;
@@ -57,12 +57,14 @@ InstanceCallSlowPath(void *slot, const char *methodName, int32_t argCount,
   // For deftype instances, use the Class pointer as the IC key instead of
   // the generic objectType, so different deftype classes get different bridges.
   word_t icKey = (word_t)instanceType;
+  std::string deftypeClassName;
   if (instanceType == deftypeType && RT_isPtr(instance)) {
     Deftype *dt = (Deftype *)RT_unboxPtr(instance);
     icKey = (word_t)(uintptr_t)dt->_class;
-    // Register the class by its type index so the bridge codegen can find it
-    engine->getCompilerState().classRegistry.registerObject(
-        dt->_class, (int32_t)deftypeType);
+    // Extract the class name so the bridge codegen can look up the specific
+    // deftype class by name (which is stable) rather than by the shared
+    // deftypeType index (which is overwritten by each deftype).
+    deftypeClassName = String_c_str(dt->_class->className);
   }
 
   // 2. Prepare the argument types for JIT specialization
@@ -78,10 +80,13 @@ InstanceCallSlowPath(void *slot, const char *methodName, int32_t argCount,
     }
   }
 
-  // 3. Trigger JIT compilation of a specialized bridge stub
+  // 3. Trigger JIT compilation of a specialized bridge stub.
+  // Use icKey as callSiteId so deftype classes each get a unique bridge
+  // (their icKey is the Class pointer, not the generic deftypeType).
   auto future = engine->compileInstanceCallBridge(
       methodName ? methodName : "unknown", ObjectTypeSet(instanceType),
-      argTypes, slot, llvm::OptimizationLevel::O0, true);
+      argTypes, (void *)(uintptr_t)icKey, llvm::OptimizationLevel::O0, true,
+      deftypeClassName);
 
   try {
     // Block until the JIT compilation is finished and get the executable

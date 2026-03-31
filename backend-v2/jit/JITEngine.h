@@ -133,7 +133,8 @@ public:
       const std::vector<ObjectTypeSet> &argTypes,
       void* callSiteId,
       llvm::OptimizationLevel Level,
-      bool printModule = false);
+      bool printModule = false,
+      const std::string &deftypeClassName = "");
 
   void invalidate(const std::string &name);
   

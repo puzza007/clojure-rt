@@ -114,7 +114,8 @@ public:
       const std::string &methodName,
       const ObjectTypeSet &instanceType,
       const std::vector<ObjectTypeSet> &argTypes,
-      void* callSiteId = nullptr);
+      void* callSiteId = nullptr,
+      const std::string &deftypeClassName = "");
 
   TypedValue codegen(const Node &node, const ObjectTypeSet &typeRestrictions);
 

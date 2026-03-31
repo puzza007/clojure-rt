@@ -327,7 +327,8 @@ JITEngine::compileAST(const Node &AST, const std::string &moduleName,
 std::shared_future<JITResult> JITEngine::compileInstanceCallBridge(
     const std::string &methodName, const ObjectTypeSet &instanceType,
     const std::vector<ObjectTypeSet> &argTypes, void *callSiteId,
-    llvm::OptimizationLevel Level, bool printModule) {
+    llvm::OptimizationLevel Level, bool printModule,
+    const std::string &deftypeClassName) {
 
   // For bridges, the module name should be descriptive and include the call
   // site
@@ -340,9 +341,10 @@ std::shared_future<JITResult> JITEngine::compileInstanceCallBridge(
   }
 
   return compileGeneric(
-      [methodName, instanceType, argTypes, callSiteId](CodeGen &cg) {
+      [methodName, instanceType, argTypes, callSiteId,
+       deftypeClassName](CodeGen &cg) {
         return cg.generateInstanceCallBridge(methodName, instanceType, argTypes,
-                                             callSiteId);
+                                             callSiteId, deftypeClassName);
       },
       moduleName, Level, printModule, true);
 }
