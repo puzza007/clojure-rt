@@ -52,6 +52,7 @@
     (let [new-var (gensym)]
       {:loop-let true
        :op :let
+       :env (:env ast)
        :bindings [{:op :binding
                    :children [:init]
                    :form new-var
