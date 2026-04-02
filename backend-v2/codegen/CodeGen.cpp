@@ -444,8 +444,8 @@ TypedValue CodeGen::codegen(const Node &node,
     return codegen(node, node.subnode().protocolinvoke(), typeRestrictions);
   case opRecur:
     return codegen(node, node.subnode().recur(), typeRestrictions);
-  // case opReify:
-  //   return codegen(node, node.subnode().reify(), typeRestrictions);
+  case opReify:
+    return codegen(node, node.subnode().reify(), typeRestrictions);
   // case opSet:
   //   return codegen(node, node.subnode().set(), typeRestrictions);
   case opMutateSet:
@@ -546,8 +546,8 @@ ObjectTypeSet CodeGen::getType(const Node &node,
     return getType(node, node.subnode().protocolinvoke(), typeRestrictions);
   case opRecur:
     return getType(node, node.subnode().recur(), typeRestrictions);
-  // case opReify:
-  //   return getType(node, node.subnode().reify(), typeRestrictions);
+  case opReify:
+    return getType(node, node.subnode().reify(), typeRestrictions);
   // case opSet:
   //   return getType(node, node.subnode().set(), typeRestrictions);
   case opMutateSet:

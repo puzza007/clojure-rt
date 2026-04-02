@@ -2494,12 +2494,13 @@
 ;-----------------------------------------------------------------------------
 ; ReifyNode
 ;-----------------------------------------------------------------------------
-(defrecord ReifyNode-record [className interfaces methods]
+(defrecord ReifyNode-record [className interfaces methods closedOvers]
   pb/Writer
   (serialize [this os]
     (serdes.core/write-String 1  {:optimize true} (:className this) os)
     (serdes.complex/write-repeated serdes.core/write-String 2 (:interfaces this) os)
-    (serdes.complex/write-repeated serdes.core/write-embedded 3 (:methods this) os))
+    (serdes.complex/write-repeated serdes.core/write-embedded 3 (:methods this) os)
+    (serdes.complex/write-repeated serdes.core/write-embedded 4 (:closedOvers this) os))
   pb/TypeReflection
   (gettype [this]
     "clojure.rt.protobuf.bytecode.ReifyNode"))
@@ -2508,7 +2509,7 @@
 (s/def :clojure.rt.protobuf.bytecode.ReifyNode/interfaces (s/every string?))
 
 (s/def ::ReifyNode-spec (s/keys :opt-un [:clojure.rt.protobuf.bytecode.ReifyNode/className :clojure.rt.protobuf.bytecode.ReifyNode/interfaces ]))
-(def ReifyNode-defaults {:className "" :interfaces [] :methods [] })
+(def ReifyNode-defaults {:className "" :interfaces [] :methods [] :closedOvers [] })
 
 (defn cis->ReifyNode
   "CodedInputStream to ReifyNode"
@@ -2519,6 +2520,7 @@
                1 [:className (serdes.core/cis->String is)]
                2 [:interfaces (serdes.complex/cis->repeated serdes.core/cis->String is)]
                3 [:methods (serdes.complex/cis->repeated ecis->Node is)]
+               4 [:closedOvers (serdes.complex/cis->repeated ecis->Node is)]
 
                [index (serdes.core/cis->undefined tag is)]))
          is)
@@ -2537,6 +2539,7 @@
   {:pre [(if (s/valid? ::ReifyNode-spec init) true (throw (ex-info "Invalid input" (s/explain-data ::ReifyNode-spec init))))]}
   (-> (merge ReifyNode-defaults init)
       (cond-> (some? (get init :methods)) (update :methods #(map new-Node %)))
+      (cond-> (some? (get init :closedOvers)) (update :closedOvers #(map new-Node %)))
       (map->ReifyNode-record)))
 
 (defn pb->ReifyNode

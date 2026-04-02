@@ -595,6 +595,9 @@ message ReifyNode {
 
   /* A vector :method AST nodes representing the reify methods */
   repeated Node methods = 3;
+
+  /* Closed-over locals captured from the enclosing scope */
+  repeated Node closedOvers = 4;
 }
 
 /* Node for a set literal with attached metadata and/or non literal elements */

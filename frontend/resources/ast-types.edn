@@ -117,7 +117,8 @@
          :recur-this :node}
  :reify {:interfaces [:string]
          :class-name :string
-         :methods [:node]}
+         :methods [:node]
+         :closed-overs [:node]}
  :set {:items [:node]}
  :set! {:target :node
         :val :node}
