@@ -129,6 +129,7 @@ set(BACKEND_SOURCES
       codegen/ops/QuoteNode.cpp
       codegen/ops/VectorNode.cpp       
       codegen/ops/MapNode.cpp
+      codegen/ops/SetNode.cpp
       codegen/ops/StaticCallNode.cpp
       codegen/ops/StaticFieldNode.cpp
       codegen/ops/IfNode.cpp

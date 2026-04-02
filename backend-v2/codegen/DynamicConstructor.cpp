@@ -160,4 +160,16 @@ TypedValue DynamicConstructor::createList(std::vector<TypedValue> &items,
                                      allArgs, true, guard);
 }
 
+TypedValue DynamicConstructor::createSet(std::vector<TypedValue> &items,
+                                         CleanupChainGuard *guard) {
+  auto retValType = ObjectTypeSet(persistentHashSetType, false);
+  std::vector<TypedValue> allArgs;
+  allArgs.push_back(createInt32(items.size()));
+  for (auto &item : items)
+    allArgs.push_back(item);
+  return invokeManager.invokeRuntime("PersistentHashSet_createMany", &retValType,
+                                     {ObjectTypeSet(integerType, false)},
+                                     allArgs, true, guard);
+}
+
 } // namespace rt

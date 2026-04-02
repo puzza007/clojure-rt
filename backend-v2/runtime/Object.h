@@ -120,6 +120,7 @@ inline bool Ptr_isReusable(void* ptr);
 #include "Symbol.h"
 #include "Var.h"
 #include "Deftype.h"
+#include "PersistentHashSet.h"
 
 inline void *allocate(size_t size) {
 #ifndef USE_MEMORY_BANKS
@@ -286,6 +287,9 @@ inline void Object_destroy(Object *restrict self, bool deallocateChildren) {
   case deftypeType:
     Deftype_destroy((Deftype *)self);
     break;
+  case persistentHashSetType:
+    PersistentHashSet_destroy((PersistentHashSet *)self, deallocateChildren);
+    break;
 
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
@@ -412,6 +416,10 @@ inline void Object_promoteToShared(Object *restrict self) {
     PersistentVectorNode_promoteToShared((PersistentVectorNode *)self, count);
     break;
 
+  case persistentHashSetType:
+    PersistentHashSet_promoteToShared((PersistentHashSet *)self, count);
+    break;
+
   default:
     Object_promoteToSharedShallow(self, count);
     break;
@@ -451,6 +459,8 @@ inline uword_t Object_hash(Object *restrict self) {
     return Var_hash((Var *)self);
   case deftypeType:
     return Deftype_hash((Deftype *)self);
+  case persistentHashSetType:
+    return PersistentHashSet_hash((PersistentHashSet *)self);
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
                     "should be computed earlier.");
@@ -533,6 +543,10 @@ inline bool Object_equals(Object *self, Object *other) {
   case deftypeType:
     return Deftype_equals((Deftype *)self, (Deftype *)other);
     break;
+  case persistentHashSetType:
+    return PersistentHashSet_equals((PersistentHashSet *)self,
+                                    (PersistentHashSet *)other);
+    break;
 
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
@@ -595,6 +609,8 @@ inline String *Object_toString(Object *restrict self) {
     return Var_toString((Var *)self);
   case deftypeType:
     return Deftype_toString((Deftype *)self);
+  case persistentHashSetType:
+    return PersistentHashSet_toString((PersistentHashSet *)self);
   default:
     assert(false && "Internal error: Object_toString got an unsupported type");
   }

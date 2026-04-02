@@ -9,7 +9,7 @@
 
 - [x] Fix `class-hash-field-access.clj` — was already fixed by `terminateDeadBlocks` in e0396ff
 - [x] Implement `opLetfn` — two-phase fn creation for mutual recursion + localTypeFn self-reference support
-- [ ] Implement `opSet` — set literals `#{...}`; needs PersistentHashSet runtime type + codegen op
+- [x] Implement `opSet` — PersistentHashSet runtime type + SetNode codegen
 - [ ] Investigate `dynfib3.clj` timeout — fib(42) naive recursion takes ~500M calls; may just need longer timeout or is an optimization opportunity
 
 ## Lower Impact — Completeness & polish

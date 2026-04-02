@@ -52,6 +52,8 @@ public:
                             CleanupChainGuard *guard = nullptr);
   TypedValue createList(std::vector<TypedValue> &items,
                         CleanupChainGuard *guard = nullptr);
+  TypedValue createSet(std::vector<TypedValue> &items,
+                       CleanupChainGuard *guard = nullptr);
 };
 
 } // namespace rt

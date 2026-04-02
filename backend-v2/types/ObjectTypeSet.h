@@ -246,6 +246,7 @@ public:
     retVal.insert(persistentArrayMapType);
     retVal.insert(varType);
     retVal.insert(deftypeType);
+    retVal.insert(persistentHashSetType);
     retVal.isBoxed = true;
     return retVal;
   }
@@ -301,6 +302,8 @@ public:
         return "LQ";
       case deftypeType:
         return "LT";
+      case persistentHashSetType:
+        return "LH";
       }
   }
 
@@ -363,6 +366,8 @@ public:
       return ":var";
     case deftypeType:
       return ":deftype";
+    case persistentHashSetType:
+      return ":set";
     default:
       return ":unknown";
     }
