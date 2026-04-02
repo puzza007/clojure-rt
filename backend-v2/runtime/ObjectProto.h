@@ -40,6 +40,7 @@ enum objectType {
   persistentArrayMapType,   // 16
   varType,                  // 17
   deftypeType,              // 18
+  persistentHashSetType,    // 19
 };
 
 typedef enum objectType objectType;

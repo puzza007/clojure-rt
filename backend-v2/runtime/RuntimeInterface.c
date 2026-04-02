@@ -1,6 +1,7 @@
 #include "RuntimeInterface.h"
 #include "ConcurrentHashMap.h"
 #include "PersistentArrayMap.h"
+#include "PersistentHashSet.h"
 #include "PersistentVector.h"
 #include "Symbol.h"
 #include "Var.h"
@@ -59,12 +60,13 @@ void RuntimeInterface_cleanup() {
   PersistentList_cleanup();
   PersistentVector_cleanup();
   PersistentArrayMap_cleanup();
+  PersistentHashSet_cleanup();
   Var_cleanup();
 }
 
 void printReferenceCounts() {
   printf("Ref counters: ");
-  for (unsigned char i = integerType; i <= varType; i++) {
+  for (unsigned char i = integerType; i <= persistentHashSetType; i++) {
     printf("%lu/%lu ", allocationCount[i - 1], objectCount[i - 1]);
   }
   printf("\n");

@@ -22,6 +22,7 @@ _Thread_local int memoryBankSize[8] = {0};
 
 void PersistentVector_initialise();
 void PersistentArrayMap_initialise();
+void PersistentHashSet_initialise();
 
 void initialise_memory() {
   for (int i = 0; i < 200; i++)
@@ -31,6 +32,7 @@ void initialise_memory() {
   /* poolInitialize(&globalPool3, 64, 100000); */
   PersistentVector_initialise();
   PersistentArrayMap_initialise();
+  PersistentHashSet_initialise();
   PersistentList_initialise();
   RuntimeInterface_initialise();
 }

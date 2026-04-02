@@ -193,6 +193,8 @@ public:
                      const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const ProtocolInvokeNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
+  TypedValue codegen(const Node &node, const SetNode &subnode,
+                     const ObjectTypeSet &typeRestrictions);
   TypedValue codegen(const Node &node, const MutateSetNode &subnode,
                      const ObjectTypeSet &typeRestrictions);
 
@@ -272,6 +274,8 @@ public:
   ObjectTypeSet getType(const Node &node, const BindingNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const ProtocolInvokeNode &subnode,
+                        const ObjectTypeSet &typeRestrictions);
+  ObjectTypeSet getType(const Node &node, const SetNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
   ObjectTypeSet getType(const Node &node, const MutateSetNode &subnode,
                         const ObjectTypeSet &typeRestrictions);
