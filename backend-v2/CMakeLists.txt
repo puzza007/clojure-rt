@@ -155,6 +155,7 @@ set(BACKEND_SOURCES
       codegen/ops/BindingNode.cpp
       codegen/ops/ProtocolInvokeNode.cpp
       codegen/ops/MutateSetNode.cpp
+      codegen/ops/ReifyNode.cpp
       codegen/ops/ThrowNode.cpp)
 
 add_subdirectory(runtime)
