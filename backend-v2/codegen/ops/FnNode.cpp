@@ -153,6 +153,14 @@ TypedValue CodeGen::codegen(const Node &node, const FnNode &subnode,
     // Last arg is the fn object
     Value *fnObjArg = &*argIt;
 
+    // Bind the fn's local name (self-reference for recursive calls)
+    if (subnode.has_local()) {
+      string fnLocalName = subnode.local().subnode().binding().name();
+      TypedValue fnSelfTV(ObjectTypeSet::dynamicType(), fnObjArg);
+      variableBindingStack.set(fnLocalName, fnSelfTV);
+      variableTypesBindingsStack.set(fnLocalName, ObjectTypeSet::all());
+    }
+
     // --- Bind closed-overs from the fn object ---
     if (method->closedovers_size() > 0) {
       // Unbox fn object pointer

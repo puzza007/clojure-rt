@@ -11,6 +11,8 @@ TypedValue CodeGen::codegen(const Node &node, const LocalNode &subnode,
   switch (subnode.local()) {
   case localTypeArg:
   case localTypeLet:
+  case localTypeLetfn:
+  case localTypeFn:
   case localTypeLoop:
   case localTypeCatch:
   case localTypeThis: {
@@ -52,6 +54,8 @@ ObjectTypeSet CodeGen::getType(const Node &node, const LocalNode &subnode,
   switch (subnode.local()) {
   case localTypeArg:
   case localTypeLet:
+  case localTypeLetfn:
+  case localTypeFn:
   case localTypeLoop:
   case localTypeCatch:
   case localTypeThis: {
