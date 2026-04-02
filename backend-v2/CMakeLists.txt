@@ -137,6 +137,7 @@ set(BACKEND_SOURCES
       codegen/ops/TheVarNode.cpp
       codegen/ops/VarNode.cpp
       codegen/ops/LetNode.cpp
+      codegen/ops/LetfnNode.cpp
       codegen/ops/LocalNode.cpp
       codegen/ops/WithMetaNode.cpp
       codegen/ops/InstanceCallNode.cpp

@@ -1,11 +1,11 @@
 (let [a "very"
       b "much"
       c "not"]
-  (letfn [#_neven?_0 (neven? #_1 [n] (if (zero? n) [a b] (nodd? #_0 (dec n))))
-          #_nodd?_0 (nodd? #_1 [n] (if (zero? n) [c a] (neven? #_0 (dec n))))
-          #_peven?_0 (peven? #_1 [n] (if (zero? n) "very much"
-                                         (if (= 1 n) "not very"
-                                             (peven? #_1 (- n 2)))))
-          #_alfa_0 (alfa #_1 [] (beta #_1))
-          #_beta_0 (beta #_1 [] 1)]
-    [(nodd? #_0 11) (peven? #_0 12) (alfa #_0)]))
+  (letfn [(neven? [n] (if (= n 0) [a b] (nodd? (- n 1))))
+          (nodd? [n] (if (= n 0) [c a] (neven? (- n 1))))
+          (peven? [n] (if (= n 0) "very much"
+                                  (if (= 1 n) "not very"
+                                              (peven? (- n 2)))))
+          (alfa [] (beta))
+          (beta [] 1)]
+    [(nodd? 11) (peven? 12) (alfa)]))

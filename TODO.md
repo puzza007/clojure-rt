@@ -7,8 +7,8 @@
 
 ## Medium Impact — Completes feature areas
 
-- [ ] Fix `class-hash-field-access.clj` — "Basic Block does not have terminator" codegen bug
-- [ ] Implement `opLetfn` — mutual recursion via letfn; test exists (letfn.clj); old backend has reference impl
+- [x] Fix `class-hash-field-access.clj` — was already fixed by `terminateDeadBlocks` in e0396ff
+- [x] Implement `opLetfn` — two-phase fn creation for mutual recursion + localTypeFn self-reference support
 - [ ] Implement `opSet` — set literals `#{...}`; needs PersistentHashSet runtime type + codegen op
 - [ ] Investigate `dynfib3.clj` timeout — fib(42) naive recursion takes ~500M calls; may just need longer timeout or is an optimization opportunity
 
