@@ -246,6 +246,8 @@ std::string CodeGen::compileSpecializedFnMethod(
   // Compile method body -- types will propagate through StaticCallNode etc.
   TypedValue bodyResult = codegen(method->body(), ObjectTypeSet::all());
 
+  memoryManagement.leaveSafetySection(jitEnginePtr);
+
   if (bodyResult.value != nullptr) {
     llvm::Value *boxedResult = valueEncoder.box(bodyResult).value;
     Builder.CreateRet(boxedResult);
@@ -257,7 +259,6 @@ std::string CodeGen::compileSpecializedFnMethod(
   recurContextTypes.erase(loopId);
   fnRecurContexts.erase(loopId);
 
-  memoryManagement.leaveSafetySection(jitEnginePtr);
   terminateDeadBlocks(F, TheContext);
   llvm::verifyFunction(*F);
   return fname;
