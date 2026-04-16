@@ -175,6 +175,10 @@ TypedValue CodeGen::codegen(const Node &node, const DeftypeNode &subnode,
 
             for (int p = 0; p < methodNode.params_size(); p++) {
               auto &binding = methodNode.params(p).subnode().binding();
+              if (binding.local() == localTypeThis ||
+                  binding.local() == localTypeFn ||
+                  binding.local() == localTypeField)
+                continue;
               string pname = binding.name();
               TypedValue paramTV(ObjectTypeSet::dynamicType(), &*argIt++);
               cg.getVariableBindingStack().set(pname, paramTV);
