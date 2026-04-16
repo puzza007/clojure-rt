@@ -44,7 +44,7 @@ TypedValue CodeGen::codegen(const Node &node, const LetfnNode &subnode,
     auto &initNode = binding.init();
     auto &fnSub = initNode.subnode().fn();
 
-    uint64_t funId = nextFnUniqueId++;
+    uint64_t funId = compilerState.nextFnUniqueId.fetch_add(1);
 
     auto nodeCopy = std::make_unique<Node>(initNode);
     const Node *rawPtr = nodeCopy.get();

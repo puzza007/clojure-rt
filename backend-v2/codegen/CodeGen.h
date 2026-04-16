@@ -311,14 +311,14 @@ public:
   };
   std::unordered_map<std::string, LoopContext> loopContexts;
 
-  enum class RecurContextType { Fn, Loop };
+  enum class RecurContextType { Fn, Loop, Method };
   std::unordered_map<std::string, RecurContextType> recurContextTypes;
 
   struct FnRecurContext {
     llvm::Function *llvmFunction;
   };
   std::unordered_map<std::string, FnRecurContext> fnRecurContexts;
-  uint64_t nextFnUniqueId = 1;
+  // Use compilerState.nextFnUniqueId instead (shared atomic counter)
 
 private:
   std::map<SourceLocation, std::string> formMap;

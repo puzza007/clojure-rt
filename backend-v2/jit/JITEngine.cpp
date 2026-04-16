@@ -333,7 +333,8 @@ std::shared_future<JITResult> JITEngine::compileInstanceCallBridge(
   // For bridges, the module name should be descriptive and include the call
   // site
   std::string moduleName = "__bridge_" + methodName + "_" +
-                           std::to_string((int)instanceType.determinedType());
+                           std::to_string((int)instanceType.determinedType()) +
+                           "_a" + std::to_string(argTypes.size());
   if (callSiteId) {
     char buf[32];
     snprintf(buf, sizeof(buf), "_%p", callSiteId);

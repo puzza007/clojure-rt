@@ -24,6 +24,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 
+#include "CoreLibrary.h"
 #include "jit/JITEngine.h"
 #include "runtime/String.h"
 #include "state/ThreadsafeCompilerState.h"
@@ -107,6 +108,8 @@ int main(int argc, char *argv[]) {
                           .address.toPtr<RTValue (*)()>()();
     cout << "Storing classes..." << endl;
     state.storeInternalClasses(classes);
+
+    rt::registerCoreLibrary(state);
 
     cout << "Compiling root..." << endl;
     for (int j = 0; j < astRoot.nodes_size(); j++) {

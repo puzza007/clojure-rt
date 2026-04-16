@@ -41,7 +41,7 @@ TypedValue CodeGen::codegen(const Node &node, const RecurNode &subnode,
 
     return TypedValue(ObjectTypeSet::all(), nullptr);
 
-  } else {
+  } else if (ctxIt->second == RecurContextType::Fn) {
     // Fn context: tail call back to the fn method
     auto &fnCtx = fnRecurContexts[loopId];
 
@@ -61,7 +61,31 @@ TypedValue CodeGen::codegen(const Node &node, const RecurNode &subnode,
     call->setTailCallKind(CallInst::TCK_Tail);
     Builder.CreateRet(call);
 
-    // Create dead BB (terminated before module verification)
+    BasicBlock *deadBB =
+        BasicBlock::Create(Builder.getContext(), "post_recur", currentFn);
+    Builder.SetInsertPoint(deadBB);
+
+    return TypedValue(ObjectTypeSet::all(), nullptr);
+
+  } else {
+    // Method context: tail call back to the method function
+    // Args: [this, recur_exprs...] — no trailing fn object
+    auto &fnCtx = fnRecurContexts[loopId];
+    Function *currentFn = Builder.GetInsertBlock()->getParent();
+
+    vector<Value *> recurArgs;
+    // First arg is always 'this' (first LLVM function argument, unchanged)
+    recurArgs.push_back(&*currentFn->arg_begin());
+
+    for (int i = 0; i < subnode.exprs_size(); i++) {
+      auto expr = codegen(subnode.exprs(i), ObjectTypeSet::all());
+      recurArgs.push_back(valueEncoder.box(expr).value);
+    }
+
+    auto *call = Builder.CreateCall(fnCtx.llvmFunction, recurArgs, "recur");
+    call->setTailCallKind(CallInst::TCK_Tail);
+    Builder.CreateRet(call);
+
     BasicBlock *deadBB =
         BasicBlock::Create(Builder.getContext(), "post_recur", currentFn);
     Builder.SetInsertPoint(deadBB);

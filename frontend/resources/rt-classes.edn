@@ -172,6 +172,15 @@
           {:args [:bigint :bigint] :type :call      :symbol "BigInteger_lt"  :returns :bool}
           {:args [:ratio :ratio]   :type :call      :symbol "Ratio_lt"       :returns :bool}
           {:args [:any :any]       :type :call      :symbol "lt"             :returns :bool}]
+    isZero [{:args [:int]    :type :intrinsic :symbol "IsZero_I" :returns :bool}
+            {:args [:double] :type :intrinsic :symbol "IsZero_D" :returns :bool}
+            {:args [:any]    :type :call      :symbol "Numbers_isZero" :returns :bool}]
+    inc    [{:args [:int]    :type :intrinsic :symbol "Inc_I" :returns :int}
+            {:args [:double] :type :intrinsic :symbol "Inc_D" :returns :double}
+            {:args [:any]    :type :call      :symbol "Numbers_inc" :returns :any}]
+    dec    [{:args [:int]    :type :intrinsic :symbol "Dec_I" :returns :int}
+            {:args [:double] :type :intrinsic :symbol "Dec_D" :returns :double}
+            {:args [:any]    :type :call      :symbol "Numbers_dec" :returns :any}]
     lte  [{:args [:double :double] :type :intrinsic :symbol "FCmpOLE"       :returns :bool}
           {:args [:int :int]       :type :intrinsic :symbol "ICmpSLE"       :returns :bool}
           {:args [:int :double]    :type :intrinsic :symbol "ICmpSLE_ID"    :returns :bool}
@@ -303,4 +312,5 @@
   {:static-fns
    {conj [{:args [clojure.lang.PersistentVector :any] :type :call :symbol "PersistentVector_conj" :returns clojure.lang.PersistentVector}]
     assoc [{:args [clojure.lang.PersistentVector :int :any] :type :call :symbol "PersistentVector_assoc" :returns clojure.lang.PersistentVector}]
-    pop [{:args [clojure.lang.PersistentVector] :type :call :symbol "PersistentVector_pop" :returns clojure.lang.PersistentVector}]}}}
+    pop [{:args [clojure.lang.PersistentVector] :type :call :symbol "PersistentVector_pop" :returns clojure.lang.PersistentVector}]
+    count [{:args [:any] :type :call :symbol "RT_count" :returns :int}]}}}

@@ -13,7 +13,6 @@ TypedValue CodeGen::codegen(const Node &node, const KeywordInvokeNode &subnode,
 
   if (target.type.isDetermined() &&
       target.type.determinedType() == persistentArrayMapType) {
-    // Static path: target is a known PersistentArrayMap — direct call
     auto retType = ObjectTypeSet::dynamicType();
     return invokeManager.invokeRuntime(
         "PersistentArrayMap_get", &retType,
@@ -21,10 +20,10 @@ TypedValue CodeGen::codegen(const Node &node, const KeywordInvokeNode &subnode,
         {target, keyword});
   }
 
-  // Dynamic path: target type unknown at compile time
+  // Dynamic path: dispatches to map get, deftype field access, or set lookup
   auto retType = ObjectTypeSet::dynamicType();
   return invokeManager.invokeRuntime(
-      "PersistentArrayMap_dynamic_get", &retType,
+      "core_keyword_invoke", &retType,
       {ObjectTypeSet::dynamicType(), ObjectTypeSet::dynamicType()},
       {target, keyword});
 }

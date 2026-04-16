@@ -253,6 +253,7 @@ std::string CodeGen::compileSpecializedFnMethod(
     Builder.CreateRet(boxedResult);
   }
 
+
   LexicalBlocks.pop_back();
   variableBindingStack.pop();
   variableTypesBindingsStack.pop();
@@ -270,9 +271,10 @@ std::string CodeGen::generateInstanceCallBridge(
     const std::string &deftypeClassName) {
   CLJ_ASSERT(TSContext != nullptr, "Codegen was moved");
 
-  // 1. Create a unique function name
+  // 1. Create a unique function name (must match module name in JITEngine)
   std::string funcName = "__bridge_" + methodName + "_" +
-                         std::to_string((int)instanceType.determinedType());
+                         std::to_string((int)instanceType.determinedType()) +
+                         "_a" + std::to_string(argTypes.size());
   if (callSiteId) {
     // Use the call site pointer for uniqueness if provided
     char buf[32];
@@ -345,6 +347,7 @@ std::string CodeGen::generateInstanceCallBridge(
   Builder.CreateRet(valueEncoder.box(result).value);
 
   verifyFunction(*F);
+
   return funcName;
 }
 

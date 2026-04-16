@@ -10,11 +10,11 @@
 - [x] Fix `class-hash-field-access.clj` — was already fixed by `terminateDeadBlocks` in e0396ff
 - [x] Implement `opLetfn` — two-phase fn creation for mutual recursion + localTypeFn self-reference support
 - [x] Implement `opSet` — PersistentHashSet runtime type + SetNode codegen
-- [ ] Investigate `dynfib3.clj` timeout — fib(42) naive recursion takes ~500M calls; may just need longer timeout or is an optimization opportunity
+- [x] Investigate `dynfib3.clj` timeout — passes with 60s; naive fib(42) is inherently O(2^n)
 
 ## Lower Impact — Completeness & polish
 
-- [ ] Quote collections (TODO in QuoteNode.cpp) — currently only handles atoms, not quoted vectors/maps/sets
+- [x] Quote collections — already work via existing VectorNode/MapNode/SetNode codegen
 - [ ] Implement `WithMeta` properly — currently ignored (TODO); metadata matters for idiomatic Clojure
 - [ ] Implement `opMonitorEnter`/`opMonitorExit` — Java synchronization primitives; low priority unless concurrency is near-term
 - [ ] Implement `opPrimInvoke` — optimized primitive interface invocations; performance optimization

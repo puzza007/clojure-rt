@@ -1,0 +1,5 @@
+(println "hello world")
+(println (str "a" "b" "c"))
+(println (str 1 " + " 2))
+(println)
+(str "done")

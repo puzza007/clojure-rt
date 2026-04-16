@@ -20,6 +20,11 @@ TypedValue CodeGen::codegen(const Node &node, const InstanceCallNode &subnode,
   CleanupChainGuard guard(*this);
 
   auto instanceVal = codegen(subnode.instance(), ObjectTypeSet::all());
+  // Retain the instance to protect against premature dropMemory releases.
+  // The frontend may annotate a drop on this node for the instance variable,
+  // which would be emitted before the call. The retain ensures the object
+  // survives through the method dispatch.
+  memoryManagement.dynamicRetain(instanceVal);
   guard.push(instanceVal);
 
   std::vector<TypedValue> args;
@@ -29,9 +34,6 @@ TypedValue CodeGen::codegen(const Node &node, const InstanceCallNode &subnode,
     guard.push(t);
   }
 
-  // All instance calls (including deftype field access and methods) go through
-  // the general dispatch path. Field getters are compiled as instanceFns in
-  // DeftypeNode, so the bridge can dispatch them like any other method.
   return invokeManager.generateInstanceCall(
       subnode.method(), instanceVal, args, &guard, &node);
 }

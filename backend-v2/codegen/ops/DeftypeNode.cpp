@@ -175,6 +175,10 @@ TypedValue CodeGen::codegen(const Node &node, const DeftypeNode &subnode,
 
             for (int p = 0; p < methodNode.params_size(); p++) {
               auto &binding = methodNode.params(p).subnode().binding();
+              if (binding.local() == localTypeThis ||
+                  binding.local() == localTypeFn ||
+                  binding.local() == localTypeField)
+                continue;
               string pname = binding.name();
               TypedValue paramTV(ObjectTypeSet::dynamicType(), &*argIt++);
               cg.getVariableBindingStack().set(pname, paramTV);
@@ -182,9 +186,19 @@ TypedValue CodeGen::codegen(const Node &node, const DeftypeNode &subnode,
                   pname, ObjectTypeSet::dynamicType());
             }
 
+            // Register recur context so recur inside method bodies works
+            string loopId = methodNode.loopid();
+            cg.fnRecurContexts[loopId] =
+                CodeGen::FnRecurContext{F};
+            cg.recurContextTypes[loopId] =
+                CodeGen::RecurContextType::Method;
+
             auto bodyResult =
                 cg.codegen(methodNode.body(), ObjectTypeSet::all());
-            builder.CreateRet(cg.getValueEncoder().box(bodyResult).value);
+
+            if (bodyResult.value != nullptr) {
+              builder.CreateRet(cg.getValueEncoder().box(bodyResult).value);
+            }
 
             for (auto &BB : *F) {
               if (!BB.getTerminator()) {
@@ -193,6 +207,8 @@ TypedValue CodeGen::codegen(const Node &node, const DeftypeNode &subnode,
               }
             }
 
+            cg.recurContextTypes.erase(loopId);
+            cg.fnRecurContexts.erase(loopId);
             cg.getVariableBindingStack().pop();
             cg.getVariableTypesBindingsStack().pop();
 
@@ -210,7 +226,8 @@ TypedValue CodeGen::codegen(const Node &node, const DeftypeNode &subnode,
     }
   }
 
-  // Register in compiler state
+  // Register by name only — deftypeType index is shared across all deftypes,
+  // so indexed registration would cause the last deftype to shadow earlier ones.
   compilerState.classRegistry.registerObject(className.c_str(), cls);
 
   // Emit LLVM IR that returns nil (deftype is a side-effect form)

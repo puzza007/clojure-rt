@@ -1,4 +1,9 @@
-dynfib3.clj - timeout (>30s)
-pendulum.clj - Missing clojure.core/println var in defrecord method body + uses extend-protocol (not yet implemented)
-protocol.clj - Missing clojure.core/str var in defrecord method body
-reify.clj - opReify implemented but test needs missing core vars (list, count, atom, swap!, println, when-not, zero?)
+dynfib3.clj - passes with 60s timeout (naive fib(42) is inherently slow)
+pendulum.clj - needs extend-protocol (not yet implemented)
+protocol.clj - PASSES
+reify.clj - needs RT/count dispatch for deftype/reify (protocol dispatch from C level)
+
+Known limitations:
+- user-defined variadic fns `(defn f [& args] ...)` crash in Release mode (works in Debug).
+  Attempted fix in CodeGen.cpp but hits LLVM O3 optimizer issue during JIT compilation.
+  Workaround: register fixed-arity methods (up to arg 3) in CoreLibrary.cpp.

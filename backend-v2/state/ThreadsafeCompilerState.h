@@ -22,6 +22,7 @@ public:
   ThreadsafeRegistry<::Class> classRegistry;
   ThreadsafeRegistry<const Node> functionAstRegistry;
   ThreadsafeRegistry<::Var> varRegistry;
+  std::atomic<uint64_t> nextFnUniqueId{1};
 
   ThreadsafeCompilerState()
       : classRegistry(true), functionAstRegistry(false), varRegistry(true) {}
