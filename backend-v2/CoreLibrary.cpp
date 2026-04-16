@@ -48,6 +48,45 @@ void registerCoreLibrary(ThreadsafeCompilerState &state) {
                            (void *)core_println_2, (void *)core_println_3};
   createCoreVar(state, "clojure.core/println",
                 createFixedArityFn(3, printlnImpls));
+
+  // atom: (atom init)
+  void *atomImpls[] = {nullptr, (void *)core_atom_1};
+  createCoreVar(state, "clojure.core/atom", createFixedArityFn(1, atomImpls));
+
+  // deref: (deref ref) — also used by @ reader macro
+  void *derefImpls[] = {nullptr, (void *)core_deref_1};
+  createCoreVar(state, "clojure.core/deref",
+                createFixedArityFn(1, derefImpls));
+
+  // reset!: (reset! atom newval)
+  void *resetImpls[] = {nullptr, nullptr, (void *)core_reset_BANG_2};
+  createCoreVar(state, "clojure.core/reset!",
+                createFixedArityFn(2, resetImpls));
+
+  // swap!: (swap! atom f) or (swap! atom f x)
+  void *swapImpls[] = {nullptr, nullptr, (void *)core_swap_BANG_2,
+                        (void *)core_swap_BANG_3};
+  createCoreVar(state, "clojure.core/swap!",
+                createFixedArityFn(3, swapImpls));
+
+  // seq
+  void *seqImpls[] = {nullptr, (void *)core_seq_1};
+  createCoreVar(state, "clojure.core/seq", createFixedArityFn(1, seqImpls));
+
+  // list
+  void *listImpls[] = {(void *)core_list_0, (void *)core_list_1,
+                        (void *)core_list_2, (void *)core_list_3};
+  createCoreVar(state, "clojure.core/list",
+                createFixedArityFn(3, listImpls));
+
+  // inc/dec as vars (needed when passed as values, e.g. (swap! a inc))
+  void *incImpls[] = {nullptr, (void *)core_inc_1};
+  createCoreVar(state, "clojure.core/inc",
+                createFixedArityFn(1, incImpls));
+
+  void *decImpls[] = {nullptr, (void *)core_dec_1};
+  createCoreVar(state, "clojure.core/dec",
+                createFixedArityFn(1, decImpls));
 }
 
 } // namespace rt

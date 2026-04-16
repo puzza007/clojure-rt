@@ -121,6 +121,7 @@ inline bool Ptr_isReusable(void* ptr);
 #include "Var.h"
 #include "Deftype.h"
 #include "PersistentHashSet.h"
+#include "Atom.h"
 
 inline void *allocate(size_t size) {
 #ifndef USE_MEMORY_BANKS
@@ -290,6 +291,9 @@ inline void Object_destroy(Object *restrict self, bool deallocateChildren) {
   case persistentHashSetType:
     PersistentHashSet_destroy((PersistentHashSet *)self, deallocateChildren);
     break;
+  case atomType:
+    Atom_destroy((Atom *)self, deallocateChildren);
+    break;
 
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
@@ -420,6 +424,10 @@ inline void Object_promoteToShared(Object *restrict self) {
     PersistentHashSet_promoteToShared((PersistentHashSet *)self, count);
     break;
 
+  case atomType:
+    Atom_promoteToShared((Atom *)self, count);
+    break;
+
   default:
     Object_promoteToSharedShallow(self, count);
     break;
@@ -461,6 +469,8 @@ inline uword_t Object_hash(Object *restrict self) {
     return Deftype_hash((Deftype *)self);
   case persistentHashSetType:
     return PersistentHashSet_hash((PersistentHashSet *)self);
+  case atomType:
+    return Atom_hash((Atom *)self);
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
                     "should be computed earlier.");
@@ -547,6 +557,9 @@ inline bool Object_equals(Object *self, Object *other) {
     return PersistentHashSet_equals((PersistentHashSet *)self,
                                     (PersistentHashSet *)other);
     break;
+  case atomType:
+    return Atom_equals((Atom *)self, (Atom *)other);
+    break;
 
   default:
     assert(false && "Internal error: hash computation for NaN tagged types "
@@ -611,6 +624,8 @@ inline String *Object_toString(Object *restrict self) {
     return Deftype_toString((Deftype *)self);
   case persistentHashSetType:
     return PersistentHashSet_toString((PersistentHashSet *)self);
+  case atomType:
+    return Atom_toString((Atom *)self);
   default:
     assert(false && "Internal error: Object_toString got an unsupported type");
   }

@@ -41,6 +41,7 @@ enum objectType {
   varType,                  // 17
   deftypeType,              // 18
   persistentHashSetType,    // 19
+  atomType,                 // 20
 };
 
 typedef enum objectType objectType;

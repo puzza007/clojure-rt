@@ -1,5 +1,9 @@
 #include "CoreLibrary.h"
 #include "Object.h"
+#include "Atom.h"
+#include "Var.h"
+#include "Function.h"
+#include "PersistentList.h"
 #include "Exceptions.h"
 #include <stdio.h>
 #include <limits.h>
@@ -85,6 +89,145 @@ RTValue core_println_3(RTValue a, RTValue b, RTValue c, RTValue closure) {
   print_value(c); release(c);
   printf("\n");
   return RT_boxNil();
+}
+
+/* ---- atom/deref/swap!/reset! ---- */
+
+RTValue core_atom_1(RTValue init, RTValue closure) {
+  release(closure);
+  return RT_boxPtr(Atom_create(init));
+}
+
+RTValue core_deref_1(RTValue ref, RTValue closure) {
+  release(closure);
+  objectType t = getType(ref);
+  if (t == atomType) {
+    return Atom_deref((Atom *)RT_unboxPtr(ref));
+  }
+  if (t == varType) {
+    return Var_deref((Var *)RT_unboxPtr(ref));
+  }
+  release(ref);
+  throwIllegalArgumentException_C("deref not supported on this type");
+  return RT_boxNil();
+}
+
+RTValue core_reset_BANG_2(RTValue atomVal, RTValue newVal, RTValue closure) {
+  release(closure);
+  if (getType(atomVal) != atomType) {
+    release(atomVal);
+    release(newVal);
+    throwIllegalArgumentException_C("reset! requires an atom");
+  }
+  return Atom_reset((Atom *)RT_unboxPtr(atomVal), newVal);
+}
+
+RTValue core_swap_BANG_2(RTValue atomVal, RTValue fn, RTValue closure) {
+  release(closure);
+  if (getType(atomVal) != atomType) {
+    release(atomVal); release(fn);
+    throwIllegalArgumentException_C("swap! requires an atom");
+  }
+  Atom *atom = (Atom *)RT_unboxPtr(atomVal);
+  ClojureFunction *func = (ClojureFunction *)RT_unboxPtr(fn);
+  typedef RTValue (*Fn1)(RTValue, RTValue);
+  Fn1 impl = (Fn1)Function_getBaselineImpl(func, 1);
+  if (!impl) {
+    Ptr_release(atom); release(fn);
+    throwIllegalArgumentException_C("swap! function must accept 1 argument");
+  }
+  /* Simple swap — no CAS loop needed for single-threaded use */
+  RTValue oldVal = atomic_load_explicit(&atom->value, memory_order_acquire);
+  retain(oldVal);
+  retain(fn);
+  RTValue newVal = impl(oldVal, fn);
+  promoteToShared(newVal);
+  RTValue prev = atomic_exchange_explicit(&atom->value, newVal, memory_order_acq_rel);
+  release(prev);
+  retain(newVal);
+  Ptr_release(atom);
+  release(fn);
+  return newVal;
+}
+
+RTValue core_swap_BANG_3(RTValue atomVal, RTValue fn, RTValue x, RTValue closure) {
+  release(closure);
+  if (getType(atomVal) != atomType) {
+    release(atomVal); release(fn); release(x);
+    throwIllegalArgumentException_C("swap! requires an atom");
+  }
+  Atom *atom = (Atom *)RT_unboxPtr(atomVal);
+  ClojureFunction *func = (ClojureFunction *)RT_unboxPtr(fn);
+  typedef RTValue (*Fn2)(RTValue, RTValue, RTValue);
+  Fn2 impl = (Fn2)Function_getBaselineImpl(func, 2);
+  if (!impl) {
+    Ptr_release(atom); release(fn); release(x);
+    throwIllegalArgumentException_C("swap! function must accept 2 arguments");
+  }
+  RTValue oldVal = atomic_load_explicit(&atom->value, memory_order_acquire);
+  retain(oldVal);
+  retain(fn);
+  RTValue newVal = impl(oldVal, x, fn);
+  promoteToShared(newVal);
+  RTValue prev = atomic_exchange_explicit(&atom->value, newVal, memory_order_acq_rel);
+  release(prev);
+  retain(newVal);
+  Ptr_release(atom);
+  release(fn);
+  return newVal;
+}
+
+/* ---- seq ---- */
+
+RTValue core_seq_1(RTValue coll, RTValue closure) {
+  release(closure);
+  if (RT_isNil(coll))
+    return RT_boxNil();
+  objectType t = getType(coll);
+  if (t == persistentListType) {
+    PersistentList *l = (PersistentList *)RT_unboxPtr(coll);
+    if (l->count == 0) {
+      Ptr_release(l);
+      return RT_boxNil();
+    }
+    return coll;
+  }
+  /* For other seqable types (including reify), return as-is for now */
+  return coll;
+}
+
+/* ---- list ---- */
+
+RTValue core_list_0(RTValue closure) {
+  release(closure);
+  return RT_boxPtr(PersistentList_createMany(0));
+}
+
+RTValue core_list_1(RTValue a, RTValue closure) {
+  release(closure);
+  return RT_boxPtr(PersistentList_createMany(1, a));
+}
+
+RTValue core_list_2(RTValue a, RTValue b, RTValue closure) {
+  release(closure);
+  return RT_boxPtr(PersistentList_createMany(2, a, b));
+}
+
+RTValue core_list_3(RTValue a, RTValue b, RTValue c, RTValue closure) {
+  release(closure);
+  return RT_boxPtr(PersistentList_createMany(3, a, b, c));
+}
+
+/* ---- inc/dec as Clojure calling convention wrappers ---- */
+
+RTValue core_inc_1(RTValue a, RTValue closure) {
+  release(closure);
+  return Numbers_inc(a);
+}
+
+RTValue core_dec_1(RTValue a, RTValue closure) {
+  release(closure);
+  return Numbers_dec(a);
 }
 
 /* ---- Numbers static methods ---- */

@@ -1,0 +1,11 @@
+(let [a (atom 0)]
+  (swap! a (fn [x] (+ x 10)))
+  (swap! a (fn [x] (+ x 5)))
+  (println "atom value:" @a)
+  (reset! a 100)
+  (println "after reset:" @a)
+  (swap! a dec)
+  (swap! a dec)
+  (swap! a dec)
+  (println "after 3 decs:" @a)
+  @a)

@@ -37,6 +37,7 @@ set(SOURCES
     PersistentArrayMap.c
     PersistentHashSet.c
     CoreLibrary.c
+    Atom.c
     Var.c
     Deftype.c
     Numbers.c

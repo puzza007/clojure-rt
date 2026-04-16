@@ -247,6 +247,7 @@ public:
     retVal.insert(varType);
     retVal.insert(deftypeType);
     retVal.insert(persistentHashSetType);
+    retVal.insert(atomType);
     retVal.isBoxed = true;
     return retVal;
   }
@@ -304,6 +305,8 @@ public:
         return "LT";
       case persistentHashSetType:
         return "LH";
+      case atomType:
+        return "LM";
       }
   }
 
@@ -368,6 +371,8 @@ public:
       return ":deftype";
     case persistentHashSetType:
       return ":set";
+    case atomType:
+      return ":atom";
     default:
       return ":unknown";
     }

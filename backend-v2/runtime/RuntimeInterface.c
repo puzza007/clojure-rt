@@ -66,7 +66,7 @@ void RuntimeInterface_cleanup() {
 
 void printReferenceCounts() {
   printf("Ref counters: ");
-  for (unsigned char i = integerType; i <= persistentHashSetType; i++) {
+  for (unsigned char i = integerType; i <= atomType; i++) {
     printf("%lu/%lu ", allocationCount[i - 1], objectCount[i - 1]);
   }
   printf("\n");
