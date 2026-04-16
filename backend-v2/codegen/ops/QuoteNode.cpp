@@ -8,7 +8,6 @@ using namespace clojure::rt::protobuf::bytecode;
 namespace rt {
 
 TypedValue CodeGen::codegen(const Node &node, const QuoteNode &subnode, const ObjectTypeSet &typeRestrictions) {
-  // TODO: quoting collections
   return codegen(subnode.expr(), typeRestrictions);
 }
 
