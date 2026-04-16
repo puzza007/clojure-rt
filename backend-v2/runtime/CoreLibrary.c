@@ -4,6 +4,12 @@
 #include "Var.h"
 #include "Function.h"
 #include "PersistentList.h"
+#include "PersistentArrayMap.h"
+#include "PersistentHashSet.h"
+#include "Deftype.h"
+#include "ConcurrentHashMap.h"
+
+extern ConcurrentHashMap *keywordsInverted;
 #include "Exceptions.h"
 #include <stdio.h>
 #include <limits.h>
@@ -88,6 +94,39 @@ RTValue core_println_3(RTValue a, RTValue b, RTValue c, RTValue closure) {
   printf(" ");
   print_value(c); release(c);
   printf("\n");
+  return RT_boxNil();
+}
+
+/* ---- keyword invoke on deftype ---- */
+
+RTValue core_keyword_invoke(RTValue target, RTValue keyword) {
+  objectType t = getType(target);
+  if (t == persistentArrayMapType) {
+    return PersistentArrayMap_get((PersistentArrayMap *)RT_unboxPtr(target),
+                                 keyword);
+  }
+  if (t == deftypeType) {
+    Deftype *dt = (Deftype *)RT_unboxPtr(target);
+    /* Resolve keyword name from intern table */
+    RTValue nameVal =
+        ConcurrentHashMap_get(keywordsInverted, keyword);
+    if (RT_isNil(nameVal)) {
+      Ptr_release(dt);
+      return RT_boxNil();
+    }
+    String *nameStr = (String *)RT_unboxPtr(nameVal);
+    nameStr = String_compactify(nameStr);
+    RTValue result = Deftype_getFieldByName(dt, String_c_str(nameStr));
+    Ptr_release(nameStr);
+    Ptr_release(dt);
+    return result;
+  }
+  if (t == persistentHashSetType) {
+    return PersistentHashSet_get((PersistentHashSet *)RT_unboxPtr(target),
+                                keyword);
+  }
+  release(target);
+  release(keyword);
   return RT_boxNil();
 }
 

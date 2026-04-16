@@ -36,6 +36,8 @@ RTValue core_list_1(RTValue a, RTValue closure);
 RTValue core_list_2(RTValue a, RTValue b, RTValue closure);
 RTValue core_list_3(RTValue a, RTValue b, RTValue c, RTValue closure);
 
+RTValue core_keyword_invoke(RTValue target, RTValue keyword);
+
 /* Static method implementations */
 bool Numbers_isZero(RTValue a);
 RTValue Numbers_inc(RTValue a);
