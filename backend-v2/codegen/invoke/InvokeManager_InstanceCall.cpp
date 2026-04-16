@@ -186,7 +186,6 @@ TypedValue InvokeManager::generateDeterminedInstanceCall(
     const clojure::rt::protobuf::bytecode::Node *node,
     const std::string &deftypeClassName) {
   auto objType = instance.type.determinedType();
-
   ::Class *targetClass = nullptr;
   if (objType == deftypeType && !deftypeClassName.empty()) {
     // For deftype bridges, look up the specific class by name. This avoids
@@ -215,6 +214,11 @@ TypedValue InvokeManager::generateDeterminedInstanceCall(
 
   PtrWrapper<Class> cls(targetClass);
   if (!cls) {
+    // For deftypeType without a class name, fall back to dynamic dispatch
+    // since we can't statically determine which deftype class this is.
+    if (objType == deftypeType && deftypeClassName.empty()) {
+      return generateDynamicInstanceCall(methodName, instance, args, guard, node);
+    }
     std::ostringstream oss;
     oss << "Class not found for instance type: "
         << ObjectTypeSet::toHumanReadableName(objType);

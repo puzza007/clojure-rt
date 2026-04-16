@@ -214,7 +214,8 @@ TypedValue CodeGen::codegen(const Node &node, const DeftypeNode &subnode,
     }
   }
 
-  // Register in compiler state
+  // Register by name only — deftypeType index is shared across all deftypes,
+  // so indexed registration would cause the last deftype to shadow earlier ones.
   compilerState.classRegistry.registerObject(className.c_str(), cls);
 
   // Emit LLVM IR that returns nil (deftype is a side-effect form)
