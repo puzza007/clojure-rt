@@ -253,6 +253,7 @@ std::string CodeGen::compileSpecializedFnMethod(
     Builder.CreateRet(boxedResult);
   }
 
+
   LexicalBlocks.pop_back();
   variableBindingStack.pop();
   variableTypesBindingsStack.pop();
@@ -345,6 +346,7 @@ std::string CodeGen::generateInstanceCallBridge(
   Builder.CreateRet(valueEncoder.box(result).value);
 
   verifyFunction(*F);
+
   return funcName;
 }
 

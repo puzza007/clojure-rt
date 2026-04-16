@@ -20,7 +20,7 @@ static constexpr size_t kClosedOversOffset =
 
 TypedValue CodeGen::codegen(const Node &node, const FnNode &subnode,
                             const ObjectTypeSet &typeRestrictions) {
-  uint64_t funId = nextFnUniqueId++;
+  uint64_t funId = compilerState.nextFnUniqueId.fetch_add(1);
 
   // Store a heap copy of the fn AST for lazy specialization.
   // The original node is owned by the caller and may be freed.

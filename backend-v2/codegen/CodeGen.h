@@ -318,7 +318,7 @@ public:
     llvm::Function *llvmFunction;
   };
   std::unordered_map<std::string, FnRecurContext> fnRecurContexts;
-  uint64_t nextFnUniqueId = 1;
+  // Use compilerState.nextFnUniqueId instead (shared atomic counter)
 
 private:
   std::map<SourceLocation, std::string> formMap;
