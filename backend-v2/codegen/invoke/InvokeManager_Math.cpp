@@ -788,6 +788,64 @@ void registerMathIntrinsics(InvokeManager &mgr) {
   intrinsics["Mul_RI"] = makeRI("Ratio_mul");
   intrinsics["Div_IR"] = makeIR("Ratio_div");
   intrinsics["Div_RI"] = makeRI("Ratio_div");
+
+  // IsZero: compare to zero
+  typeIntrinsics["IsZero_I"] = [](const vector<ObjectTypeSet> &args) -> ObjectTypeSet {
+    if (args.size() != 1) return ObjectTypeSet::dynamicType();
+    auto *c = dynamic_cast<ConstantInteger *>(args[0].getConstant());
+    if (c) return ObjectTypeSet(booleanType, false, new ConstantBoolean(c->value == 0));
+    return ObjectTypeSet(booleanType, false);
+  };
+  typeIntrinsics["IsZero_D"] = [](const vector<ObjectTypeSet> &args) -> ObjectTypeSet {
+    if (args.size() != 1) return ObjectTypeSet::dynamicType();
+    auto *c = dynamic_cast<ConstantDouble *>(args[0].getConstant());
+    if (c) return ObjectTypeSet(booleanType, false, new ConstantBoolean(c->value == 0.0));
+    return ObjectTypeSet(booleanType, false);
+  };
+  intrinsics["IsZero_I"] = [](auto &b, auto args) {
+    return b.CreateICmpEQ(args[0], llvm::ConstantInt::get(args[0]->getType(), 0));
+  };
+  intrinsics["IsZero_D"] = [](auto &b, auto args) {
+    return b.CreateFCmpOEQ(args[0], llvm::ConstantFP::get(args[0]->getType(), 0.0));
+  };
+
+  // Inc/Dec: add/subtract 1
+  typeIntrinsics["Inc_I"] = [](const vector<ObjectTypeSet> &args) -> ObjectTypeSet {
+    if (args.size() != 1) return ObjectTypeSet::dynamicType();
+    auto *c = dynamic_cast<ConstantInteger *>(args[0].getConstant());
+    if (c) return ObjectTypeSet(integerType, false, new ConstantInteger(c->value + 1));
+    return ObjectTypeSet(integerType, false);
+  };
+  typeIntrinsics["Inc_D"] = [](const vector<ObjectTypeSet> &args) -> ObjectTypeSet {
+    if (args.size() != 1) return ObjectTypeSet::dynamicType();
+    auto *c = dynamic_cast<ConstantDouble *>(args[0].getConstant());
+    if (c) return ObjectTypeSet(doubleType, false, new ConstantDouble(c->value + 1.0));
+    return ObjectTypeSet(doubleType, false);
+  };
+  typeIntrinsics["Dec_I"] = [](const vector<ObjectTypeSet> &args) -> ObjectTypeSet {
+    if (args.size() != 1) return ObjectTypeSet::dynamicType();
+    auto *c = dynamic_cast<ConstantInteger *>(args[0].getConstant());
+    if (c) return ObjectTypeSet(integerType, false, new ConstantInteger(c->value - 1));
+    return ObjectTypeSet(integerType, false);
+  };
+  typeIntrinsics["Dec_D"] = [](const vector<ObjectTypeSet> &args) -> ObjectTypeSet {
+    if (args.size() != 1) return ObjectTypeSet::dynamicType();
+    auto *c = dynamic_cast<ConstantDouble *>(args[0].getConstant());
+    if (c) return ObjectTypeSet(doubleType, false, new ConstantDouble(c->value - 1.0));
+    return ObjectTypeSet(doubleType, false);
+  };
+  intrinsics["Inc_I"] = [](auto &b, auto args) {
+    return b.CreateAdd(args[0], llvm::ConstantInt::get(args[0]->getType(), 1));
+  };
+  intrinsics["Inc_D"] = [](auto &b, auto args) {
+    return b.CreateFAdd(args[0], llvm::ConstantFP::get(args[0]->getType(), 1.0));
+  };
+  intrinsics["Dec_I"] = [](auto &b, auto args) {
+    return b.CreateSub(args[0], llvm::ConstantInt::get(args[0]->getType(), 1));
+  };
+  intrinsics["Dec_D"] = [](auto &b, auto args) {
+    return b.CreateFSub(args[0], llvm::ConstantFP::get(args[0]->getType(), 1.0));
+  };
 }
 
 } // namespace rt
