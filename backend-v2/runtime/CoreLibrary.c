@@ -11,6 +11,7 @@
 
 extern ConcurrentHashMap *keywordsInverted;
 #include "Exceptions.h"
+#include "Numbers.h"
 #include <stdio.h>
 #include <limits.h>
 
@@ -267,6 +268,11 @@ RTValue core_inc_1(RTValue a, RTValue closure) {
 RTValue core_dec_1(RTValue a, RTValue closure) {
   release(closure);
   return Numbers_dec(a);
+}
+
+RTValue core_lte_2(RTValue a, RTValue b, RTValue closure) {
+  release(closure);
+  return RT_boxBool(Numbers_lte(a, b));
 }
 
 /* ---- Numbers static methods ---- */

@@ -28,6 +28,7 @@ RTValue core_swap_BANG_3(RTValue atomVal, RTValue fn, RTValue x, RTValue closure
 
 RTValue core_inc_1(RTValue a, RTValue closure);
 RTValue core_dec_1(RTValue a, RTValue closure);
+RTValue core_lte_2(RTValue a, RTValue b, RTValue closure);
 
 RTValue core_seq_1(RTValue coll, RTValue closure);
 

@@ -87,6 +87,11 @@ void registerCoreLibrary(ThreadsafeCompilerState &state) {
   void *decImpls[] = {nullptr, (void *)core_dec_1};
   createCoreVar(state, "clojure.core/dec",
                 createFixedArityFn(1, decImpls));
+
+  // <=
+  void *lteImpls[] = {nullptr, nullptr, (void *)core_lte_2};
+  createCoreVar(state, "clojure.core/<=",
+                createFixedArityFn(2, lteImpls));
 }
 
 } // namespace rt
