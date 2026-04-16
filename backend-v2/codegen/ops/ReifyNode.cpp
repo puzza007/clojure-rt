@@ -170,9 +170,18 @@ TypedValue CodeGen::codegen(const Node &node, const ReifyNode &subnode,
               }
             }
 
+            string loopId = methodNode.loopid();
+            cg.fnRecurContexts[loopId] =
+                CodeGen::FnRecurContext{F};
+            cg.recurContextTypes[loopId] =
+                CodeGen::RecurContextType::Method;
+
             auto bodyResult =
                 cg.codegen(methodNode.body(), ObjectTypeSet::all());
-            builder.CreateRet(cg.getValueEncoder().box(bodyResult).value);
+
+            if (bodyResult.value != nullptr) {
+              builder.CreateRet(cg.getValueEncoder().box(bodyResult).value);
+            }
 
             for (auto &BB : *F) {
               if (!BB.getTerminator()) {
@@ -181,6 +190,8 @@ TypedValue CodeGen::codegen(const Node &node, const ReifyNode &subnode,
               }
             }
 
+            cg.recurContextTypes.erase(loopId);
+            cg.fnRecurContexts.erase(loopId);
             cg.getVariableBindingStack().pop();
             cg.getVariableTypesBindingsStack().pop();
 

@@ -311,7 +311,7 @@ public:
   };
   std::unordered_map<std::string, LoopContext> loopContexts;
 
-  enum class RecurContextType { Fn, Loop };
+  enum class RecurContextType { Fn, Loop, Method };
   std::unordered_map<std::string, RecurContextType> recurContextTypes;
 
   struct FnRecurContext {
